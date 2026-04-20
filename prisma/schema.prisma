@@ -1,0 +1,64 @@
+// Эталон для будущего бэкенда (сейчас CRM — фронт + Zustand).
+// npx prisma migrate dev — после подключения DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoomPurpose {
+  propagation
+  veg
+  flower
+  drying
+  mother
+  quarantine
+  other
+}
+
+model Room {
+  id        String      @id @default(cuid())
+  companyId String
+  name      String
+  type      RoomPurpose @default(other)
+  fixtures  Fixture[]
+
+  plants Plant[] @relation("PlantRoom")
+}
+
+model Fixture {
+  id      String  @id @default(cuid())
+  roomId  String
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  name    String
+  levels  Level[]
+
+  plants Plant[] @relation("PlantFixture")
+}
+
+model Level {
+  id        String  @id @default(cuid())
+  fixtureId String
+  fixture   Fixture @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  name      String
+
+  plants Plant[] @relation("PlantLevel")
+}
+
+model Plant {
+  id        String @id @default(cuid())
+  companyId String
+
+  roomId   String?
+  room     Room?   @relation("PlantRoom", fields: [roomId], references: [id])
+
+  fixtureId String?
+  fixture   Fixture? @relation("PlantFixture", fields: [fixtureId], references: [id])
+
+  levelId String?
+  level   Level?  @relation("PlantLevel", fields: [levelId], references: [id])
+}
