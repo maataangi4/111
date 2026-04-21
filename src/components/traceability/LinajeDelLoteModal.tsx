@@ -1,19 +1,15 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useMemo } from 'react'
 import { CalendarClock, Leaf, Package, Scale, Sprout, X } from 'lucide-react'
+import { formatInClubTimeZone } from '../../lib/clubTime'
 import { cn } from '../../lib/cn'
 import { useCultivationStore } from '../../store/useCultivationStore'
 import { useSociosStore } from '../../store/useSociosStore'
+import { useSettingsStore } from '../../store/useSettingsStore'
 
 function fmtGrams(n: number) {
   const g = Math.round(n * 10) / 10
   return `${String(g).replace('.', ',')} g`
-}
-
-function fmtDate(iso: string) {
-  const d = new Date(iso)
-  if (!Number.isFinite(d.getTime())) return iso
-  return d.toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 function NodeCard({
@@ -71,6 +67,14 @@ export function LinajeDelLoteModal({
 }) {
   const harvestBatches = useCultivationStore((s) => s.harvestBatches)
   const movimientos = useSociosStore((s) => s.movimientos)
+  const clubTimeZone = useSettingsStore((s) => s.timezone)
+  const appLocale = useSettingsStore((s) => s.locale)
+
+  const fmtDate = (iso: string) => {
+    const d = new Date(iso)
+    if (!Number.isFinite(d.getTime())) return iso
+    return formatInClubTimeZone(d, clubTimeZone, appLocale, { dateStyle: 'medium', timeStyle: 'short' })
+  }
 
   const batch = useMemo(
     () => (harvestBatchId ? harvestBatches.find((b) => b.id === harvestBatchId) ?? null : null),

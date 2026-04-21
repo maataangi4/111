@@ -1,7 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { formatInClubTimeZone } from '../lib/clubTime'
 import { cn } from '../lib/cn'
+import { useSettingsStore } from '../store/useSettingsStore'
 
 export type TeamMemberId = 'eddie' | 'elian'
 
@@ -73,6 +75,8 @@ export type TeamMemberSlideOverProps = {
 export function TeamMemberSlideOver({ memberId, onClose }: TeamMemberSlideOverProps) {
   const open = memberId !== null
   const profile = memberId ? PROFILES[memberId] : null
+  const clubTimeZone = useSettingsStore((s) => s.timezone)
+  const appLocale = useSettingsStore((s) => s.locale)
   const [now, setNow] = useState(() => new Date())
   const [quickNote, setQuickNote] = useState('')
 
@@ -108,7 +112,7 @@ export function TeamMemberSlideOver({ memberId, onClose }: TeamMemberSlideOverPr
     }
   }, [open])
 
-  const localTime = now.toLocaleTimeString('es-ES', {
+  const localTime = formatInClubTimeZone(now, clubTimeZone, appLocale, {
     hour: '2-digit',
     minute: '2-digit',
   })

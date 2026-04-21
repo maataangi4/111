@@ -77,7 +77,7 @@ export function TeamRolesSettings() {
   }, [openMenu])
 
   return (
-    <section className={cn('rounded-2xl border p-5 shadow-sm', C.card)}>
+    <section className="border-0 border-b border-gray-200/70 bg-transparent pb-10 shadow-none dark:border-[#2e2e2e]/80 last:border-b-0 last:pb-0">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className={cn('text-lg font-semibold tracking-tight', C.heading)}>
@@ -97,7 +97,7 @@ export function TeamRolesSettings() {
         </button>
       </div>
 
-      <div className="-mx-5 overflow-x-auto border-t border-gray-200/80 dark:border-[#2e2e2e]">
+      <div className="overflow-x-auto border-t border-gray-200/80 dark:border-[#2e2e2e]">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className={cn('border-b border-gray-200/90 dark:border-[#2e2e2e]', C.tableHead)}>

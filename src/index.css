@@ -41,7 +41,10 @@ body {
   min-height: 100svh;
 }
 
-/* Тонкий «серый» скролл внутри блоков (модалки и т.п.), не вылезает за скругление родителя с overflow-hidden */
+/*
+ * Тонкий «серый» скролл (модалки Cultivo, Transplant, и т.д.).
+ * Один класс для вертикали и горизонтали — те же цвета, 7px, скругление, padding-box у thumb.
+ */
 .scrollbar-modern {
   scrollbar-width: thin;
   scrollbar-color: rgb(163 163 163 / 0.85) rgb(243 244 246 / 0.9);
@@ -49,12 +52,21 @@ body {
 
 .scrollbar-modern::-webkit-scrollbar {
   width: 7px;
+  height: 7px;
 }
 
 .scrollbar-modern::-webkit-scrollbar-track {
   margin: 10px 0;
   background: rgb(243 244 246 / 0.95);
   border-radius: 9999px;
+}
+
+.scrollbar-modern::-webkit-scrollbar-track:vertical {
+  margin: 10px 0;
+}
+
+.scrollbar-modern::-webkit-scrollbar-track:horizontal {
+  margin: 0 10px;
 }
 
 .scrollbar-modern::-webkit-scrollbar-thumb {
@@ -67,6 +79,45 @@ body {
 .scrollbar-modern::-webkit-scrollbar-thumb:hover {
   background: rgb(115 115 115 / 0.55);
   background-clip: padding-box;
+}
+
+/* Тёмная полоса прокрутки (выпадающие списки на #161616 и т.п.). */
+.scrollbar-modern-dark {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(82 82 82 / 0.85) rgb(28 28 28 / 0.95);
+}
+
+.scrollbar-modern-dark::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.scrollbar-modern-dark::-webkit-scrollbar-track {
+  margin: 8px 0;
+  background: rgb(28 28 28 / 0.98);
+  border-radius: 9999px;
+}
+
+.scrollbar-modern-dark::-webkit-scrollbar-thumb {
+  background: rgb(82 82 82 / 0.75);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.scrollbar-modern-dark::-webkit-scrollbar-thumb:hover {
+  background: rgb(115 115 115 / 0.65);
+  background-clip: padding-box;
+}
+
+/* Modo discreto: montos marcados se difuminan hasta hover (ver `data-discrete-money` en ThemeSync). */
+html[data-discrete-money] .discrete-money-sensitive {
+  filter: blur(7px);
+  transition: filter 0.2s ease;
+}
+
+html[data-discrete-money] .discrete-money-sensitive:hover {
+  filter: none;
 }
 
 input[type='date'],

@@ -514,10 +514,37 @@ export function Dashboard() {
   const stockItems = useCrmStore((s) => (Array.isArray(s.stock) ? s.stock : []))
   const theme = useSettingsStore((s) => s.theme)
   const setTheme = useSettingsStore((s) => s.setTheme)
+  const [systemPrefersDark, setSystemPrefersDark] = useState(false)
   const shellWallpaperId = useSettingsStore((s) => s.shellWallpaperId ?? null)
   const shellWallpaperUrl = shellWallpaperId ? shellWallpaperSrc(shellWallpaperId) : null
   const profileAvatarDataUrl = useSettingsStore((s) => s.profileAvatarDataUrl ?? null)
   const reduceMotion = useReducedMotion()
+
+  const headerThemeIsDark = theme === 'dark' || (theme === 'system' && systemPrefersDark)
+
+  useEffect(() => {
+    if (theme !== 'system') return
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const sync = () => setSystemPrefersDark(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [theme])
+
+  const landingHydratedRef = useRef(false)
+  useEffect(() => {
+    const applyLanding = () => {
+      if (landingHydratedRef.current) return
+      landingHydratedRef.current = true
+      const land = useSettingsStore.getState().defaultLandingTab
+      if (land) setTab(land as DashboardTab)
+    }
+    if (useSettingsStore.persist.hasHydrated()) {
+      applyLanding()
+      return undefined
+    }
+    return useSettingsStore.persist.onFinishHydration(applyLanding)
+  }, [])
 
   const measureComplianceBadgeExpanded = useCallback(() => {
     const el = complianceBadgeMeasureRef.current
@@ -963,20 +990,20 @@ export function Dashboard() {
         <motion.span
           className="pointer-events-none absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-slate-100 dark:bg-[#181818]"
           initial={false}
-          animate={{ left: theme === 'dark' ? '4px' : 'calc(50% + 0px)' }}
+          animate={{ left: headerThemeIsDark ? '4px' : 'calc(50% + 0px)' }}
           transition={{ type: 'tween', duration: 0.38, ease: [0.4, 0, 0.2, 1] }}
         />
         <button
           type="button"
           onClick={() => setTheme('dark')}
           className="relative z-10 flex flex-1 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-gray-900/20 dark:focus-visible:ring-white/20"
-          aria-pressed={theme === 'dark'}
+          aria-pressed={headerThemeIsDark}
           title={t('topBar.toggleTheme')}
         >
           <Moon
             className={cn(
               'h-[18px] w-[18px]',
-              theme === 'dark' ? 'text-gray-900 dark:text-[#f1f1f1]' : 'text-gray-400 dark:text-[#6b6b6b]',
+              headerThemeIsDark ? 'text-gray-900 dark:text-[#f1f1f1]' : 'text-gray-400 dark:text-[#6b6b6b]',
             )}
             strokeWidth={2}
           />
@@ -985,13 +1012,13 @@ export function Dashboard() {
           type="button"
           onClick={() => setTheme('light')}
           className="relative z-10 flex flex-1 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-gray-900/20 dark:focus-visible:ring-white/20"
-          aria-pressed={theme === 'light'}
+          aria-pressed={!headerThemeIsDark}
           title={t('topBar.toggleTheme')}
         >
           <Sun
             className={cn(
               'h-[18px] w-[18px]',
-              theme === 'light' ? 'text-gray-900 dark:text-[#f1f1f1]' : 'text-gray-400 dark:text-[#6b6b6b]',
+              !headerThemeIsDark ? 'text-gray-900 dark:text-[#f1f1f1]' : 'text-gray-400 dark:text-[#6b6b6b]',
             )}
             strokeWidth={2}
           />
@@ -1172,6 +1199,9 @@ export function Dashboard() {
     </div>
   )
 
+  const mainFullBleedContent =
+    tab === 'cultivo' || tab === 'socios' || tab === 'movimientos' || tab === 'settings'
+
   return (
     <div className="relative min-h-screen w-full font-sans text-gray-900 dark:text-[#f1f1f1]">
       {shellWallpaperUrl ? (
@@ -1337,10 +1367,12 @@ export function Dashboard() {
               bentoChromeLightBody,
               'dark:border-0 dark:bg-[#181818] dark:shadow-none',
               tab === 'cultivo'
-                ? 'overflow-x-visible overflow-y-auto dark:overflow-x-visible dark:overflow-y-auto'
+                ? 'scrollbar-modern overflow-x-visible overflow-y-auto dark:overflow-x-visible dark:overflow-y-auto'
                 : tab === 'dashboard'
                   ? 'overflow-x-hidden overflow-y-auto dark:overflow-x-hidden dark:overflow-y-auto'
-                  : 'overflow-hidden dark:overflow-hidden',
+                  : mainFullBleedContent
+                    ? 'scrollbar-modern overflow-x-hidden overflow-y-auto dark:overflow-x-hidden dark:overflow-y-auto'
+                    : 'overflow-hidden dark:overflow-hidden',
               bentoPanelRadiusDark,
             )}
             onClick={() => closeAllFloating()}
@@ -1391,7 +1423,7 @@ export function Dashboard() {
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                   className={cn(
-                    tab === 'cultivo' || tab === 'socios' || tab === 'movimientos'
+                    mainFullBleedContent
                       ? 'min-h-0 w-full flex-1 p-0'
                       : cn('p-8', tab === 'postharvest' ? 'mx-auto w-full max-w-7xl' : 'mx-auto w-full max-w-6xl'),
                   )}
@@ -1399,9 +1431,7 @@ export function Dashboard() {
                 >
                   <div
                     className={cn(
-                      tab === 'cultivo' || tab === 'socios' || tab === 'movimientos'
-                        ? 'min-h-0 h-full w-full bg-transparent'
-                        : bentoShell,
+                      mainFullBleedContent ? 'min-h-0 h-full w-full bg-transparent' : bentoShell,
                     )}
                   >
                     {tab === 'genetics' && <AgronomyTab initialSub="banco" visibleSubs={['banco']} hideTabs />}
@@ -1416,7 +1446,10 @@ export function Dashboard() {
                     {tab === 'movimientos' && <MovimientosTab />}
                     {tab === 'tools' && <ToolsTab />}
                     {tab === 'settings' && (
-                      <SettingsTab scrollToSection={settingsSection} />
+                      <SettingsTab
+                        activeSection={settingsSection}
+                        onSectionChange={setSettingsSection}
+                      />
                     )}
                   </div>
                 </motion.div>

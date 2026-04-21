@@ -1,8 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import { CalendarClock, Download, Filter, ListChecks, Search, X } from 'lucide-react'
+import { anchorForZonedYmd, formatInClubTimeZone, zonedISODate } from '../../lib/clubTime'
 import { cn } from '../../lib/cn'
 import { useSociosStore, type MovimientoEntry, type MovimientoTipo } from '../../store/useSociosStore'
+import { useSettingsStore } from '../../store/useSettingsStore'
 
 function fmtInt(n: number) {
   try {
@@ -81,13 +83,11 @@ function TipoBadge({ tipo }: { tipo: MovimientoTipo }) {
   )
 }
 
-function isSameIsoDay(iso: string, dayIso: string) {
-  return iso.slice(0, 10) === dayIso
-}
-
 export function MovimientosTab() {
   const movimientos = useSociosStore((s) => s.movimientos)
   const anularMovimiento = useSociosStore((s) => s.anularMovimiento)
+  const clubTimeZone = useSettingsStore((s) => s.timezone)
+  const appLocale = useSettingsStore((s) => s.locale)
 
   const [q, setQ] = useState('')
   const [from, setFrom] = useState<string>('')
@@ -99,8 +99,6 @@ export function MovimientosTab() {
   const [annulTarget, setAnnulTarget] = useState<MovimientoEntry | null>(null)
   const [annulMotivo, setAnnulMotivo] = useState('')
   const [annulError, setAnnulError] = useState<string | null>(null)
-
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), [])
 
   const batches = useMemo(() => {
     const set = new Map<string, string>()
@@ -115,8 +113,9 @@ export function MovimientosTab() {
     const query = q.trim().toLowerCase()
     const fromD = from ? new Date(`${from}T00:00:00`) : null
     const toD = to ? new Date(`${to}T23:59:59`) : null
+    const todayClub = zonedISODate(new Date(), clubTimeZone)
     return movimientos.filter((m) => {
-      if (todayOnly && !isSameIsoDay(m.createdAt, todayIso)) return false
+      if (todayOnly && zonedISODate(new Date(m.createdAt), clubTimeZone) !== todayClub) return false
       if (onlyLegal && m.tipo !== 'legal') return false
       if (batchId && m.harvestBatchId !== batchId) return false
       const t = new Date(m.createdAt)
@@ -128,20 +127,20 @@ export function MovimientosTab() {
       }
       return true
     })
-  }, [movimientos, q, from, to, todayOnly, onlyLegal, batchId, todayIso])
+  }, [movimientos, q, from, to, todayOnly, onlyLegal, batchId, clubTimeZone])
 
   const grouped = useMemo(() => {
     if (!groupByDay) return null
     const map = new Map<string, MovimientoEntry[]>()
     for (const m of filtered) {
-      const day = m.createdAt.slice(0, 10)
+      const day = zonedISODate(new Date(m.createdAt), clubTimeZone)
       const arr = map.get(day) ?? []
       arr.push(m)
       map.set(day, arr)
     }
     const days = [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1))
     return days.map(([day, items]) => ({ day, items }))
-  }, [filtered, groupByDay])
+  }, [filtered, groupByDay, clubTimeZone])
 
   const totals = useMemo(() => {
     let grams = 0
@@ -161,7 +160,10 @@ export function MovimientosTab() {
     const rows: string[][] = [
       ['Fecha', 'Socio', 'DNI', 'Lote', 'Cantidad (g)', 'Aporte (ARS)', 'Método', 'Tipo', 'Estado', 'Motivo anulación'],
       ...filtered.map((m) => [
-        m.createdAt,
+        formatInClubTimeZone(m.createdAt, clubTimeZone, appLocale, {
+          dateStyle: 'short',
+          timeStyle: 'medium',
+        }),
         m.socioNombre,
         m.socioDni,
         m.harvestBatchLabel || m.harvestBatchId,
@@ -457,8 +459,18 @@ function DayGroup({
   items: MovimientoEntry[]
   onAnnul: (m: MovimientoEntry) => void
 }) {
-  const d = new Date(`${day}T00:00:00`)
-  const label = Number.isFinite(d.getTime()) ? d.toLocaleDateString('es-AR', { dateStyle: 'full' }) : day
+  const clubTimeZone = useSettingsStore((s) => s.timezone)
+  const appLocale = useSettingsStore((s) => s.locale)
+  const anchor = anchorForZonedYmd(day, clubTimeZone)
+  const label =
+    anchor != null
+      ? formatInClubTimeZone(anchor, clubTimeZone, appLocale, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : day
   const totals = items.reduce(
     (acc, m) => {
       acc.grams += m.grams
@@ -485,6 +497,12 @@ function DayGroup({
 }
 
 function MovimientoRow({ m, onAnnul }: { m: MovimientoEntry; onAnnul: (m: MovimientoEntry) => void }) {
+  const clubTimeZone = useSettingsStore((s) => s.timezone)
+  const appLocale = useSettingsStore((s) => s.locale)
+  const dateLabel = formatInClubTimeZone(m.createdAt, clubTimeZone, appLocale, {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
   const openSocio = () => {
     window.dispatchEvent(new CustomEvent('socios:open', { detail: { socioId: m.socioId } }))
     window.dispatchEvent(new CustomEvent('dashboard:open-tab', { detail: { tab: 'socios' } }))
@@ -492,7 +510,6 @@ function MovimientoRow({ m, onAnnul }: { m: MovimientoEntry; onAnnul: (m: Movimi
   const openTrazabilidad = () => {
     window.dispatchEvent(new CustomEvent('traceability:open', { detail: { harvestBatchId: m.harvestBatchId } }))
   }
-  const dateLabel = new Date(m.createdAt).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })
   const anulada = m.status === 'anulado'
   const reversal = m.status === 'reversion'
   return (
@@ -504,7 +521,7 @@ function MovimientoRow({ m, onAnnul }: { m: MovimientoEntry; onAnnul: (m: Movimi
       )}
       title={
         anulada && m.anulacion
-          ? `Anulado por ${m.anulacion.by} · ${new Date(m.anulacion.at).toLocaleString('es-AR')} · ${m.anulacion.motivo}`
+          ? `Anulado por ${m.anulacion.by} · ${formatInClubTimeZone(m.anulacion.at, clubTimeZone, appLocale, { dateStyle: 'short', timeStyle: 'short' })} · ${m.anulacion.motivo}`
           : undefined
       }
     >

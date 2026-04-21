@@ -2,8 +2,10 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Check, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from '../i18n/useTranslation'
+import { formatInClubTimeZone } from '../lib/clubTime'
 import { cn } from '../lib/cn'
 import { SUBSCRIPTION_STUB } from '../lib/subscriptionStub'
+import { useSettingsStore } from '../store/useSettingsStore'
 
 export type PricingModalProps = {
   open: boolean
@@ -16,6 +18,8 @@ const featureRow = 'flex gap-2 text-sm text-slate-600 dark:text-[#c4c4c4]'
 
 export function PricingModal({ open, onOpenChange, isMaxPlanStub = false }: PricingModalProps) {
   const { t, locale } = useTranslation()
+  const clubTimeZone = useSettingsStore((s) => s.timezone)
+  const appLocale = locale === 'ru' ? 'ru' : 'es'
   const [showPlans, setShowPlans] = useState(!isMaxPlanStub)
 
   useEffect(() => {
@@ -41,17 +45,18 @@ export function PricingModal({ open, onOpenChange, isMaxPlanStub = false }: Pric
     }
   }, [open])
 
-  const dateLocale = locale === 'ru' ? 'ru-RU' : 'es-AR'
-  const renews = new Date(SUBSCRIPTION_STUB.renewsAtIso).toLocaleDateString(dateLocale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-  const memberSince = new Date(SUBSCRIPTION_STUB.memberSinceIso).toLocaleDateString(dateLocale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  const renews = formatInClubTimeZone(
+    new Date(SUBSCRIPTION_STUB.renewsAtIso),
+    clubTimeZone,
+    appLocale,
+    { day: 'numeric', month: 'short', year: 'numeric' },
+  )
+  const memberSince = formatInClubTimeZone(
+    new Date(SUBSCRIPTION_STUB.memberSinceIso),
+    clubTimeZone,
+    appLocale,
+    { day: 'numeric', month: 'short', year: 'numeric' },
+  )
   const billingLabel =
     SUBSCRIPTION_STUB.billingCycleKey === 'annual'
       ? t('subscriptionOverview.billingAnnual')

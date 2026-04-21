@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { formatInClubTimeZone } from '../../lib/clubTime'
 import type { AppLocale } from '../../store/useSettingsStore'
 import type { GeneticsType, PropagacionLogEntry } from '../../store/cultivationTypes'
 import { cn } from '../../lib/cn'
@@ -76,6 +77,7 @@ export function PropagacionBatchDashboard({
   propagacionLog,
   age,
   locale,
+  timeZone,
   t,
   inventory,
   lateInventory,
@@ -88,6 +90,8 @@ export function PropagacionBatchDashboard({
   propagacionLog: PropagacionLogEntry[] | undefined
   age: number
   locale: AppLocale
+  /** Zona horaria del club (settings). */
+  timeZone: string
   t: TFn
   /** Lote en germinación: plantado, bajas Diario, vivos, % supervivencia. */
   inventory?: { planted: number; discarded: number; alive: number; survivalPct: number } | null
@@ -217,8 +221,12 @@ export function PropagacionBatchDashboard({
   const fmtTime = (ts: number) => {
     const d = new Date(ts)
     if (Number.isNaN(d.getTime())) return '—'
-    const loc = locale === 'es' ? 'es-AR' : 'ru-RU'
-    return d.toLocaleString(loc, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    return formatInClubTimeZone(d, timeZone, locale, {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
 
   const tabs: { id: DashTab; label: string }[] = [

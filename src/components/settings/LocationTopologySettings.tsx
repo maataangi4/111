@@ -86,7 +86,7 @@ export function LocationTopologySettings({
     setOpenFx((p) => ({ ...p, [id]: !p[id] }))
 
   return (
-    <section className={cn('rounded-2xl border p-5 shadow-sm', C.card)}>
+    <section className="border-0 border-b border-gray-200/70 bg-transparent pb-10 shadow-none dark:border-[#2e2e2e]/80">
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -104,9 +104,9 @@ export function LocationTopologySettings({
         </button>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border border-dashed border-gray-200 bg-gray-50/80 p-3">
+      <div className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border border-dashed border-gray-200 bg-gray-50/80 p-3 dark:border-[#3d3d3d] dark:bg-white/[0.03]">
         <div className="min-w-[140px] flex-1">
-          <label className="text-xs font-medium text-gray-600">{labels.type}</label>
+          <label className="text-xs font-medium text-gray-600 dark:text-[#9a9a9a]">{labels.type}</label>
           <div className="mt-1">
             <SoftSelect
               value={newRoomType}
@@ -115,17 +115,17 @@ export function LocationTopologySettings({
               chipText={ROOM_PURPOSE_LABELS[newRoomType]}
               ariaLabel={labels.type}
               variant="field"
-              triggerClassName="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm"
+              triggerClassName="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-[#3d3d3d] dark:bg-[#252525] dark:text-[#f1f1f1]"
             />
           </div>
         </div>
         <div className="min-w-[160px] flex-[2]">
-          <label className="text-xs font-medium text-gray-600">{labels.addRoom}</label>
+          <label className="text-xs font-medium text-gray-600 dark:text-[#9a9a9a]">{labels.addRoom}</label>
           <input
             value={newRoomName}
             onChange={(e) => setNewRoomName(e.target.value)}
             placeholder={labels.roomNamePh}
-            className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 dark:border-[#3d3d3d] dark:bg-[#252525] dark:text-[#f1f1f1] dark:placeholder:text-[#6b6b6b]"
           />
         </div>
         <button
@@ -153,13 +153,13 @@ export function LocationTopologySettings({
           return (
             <li
               key={room.id}
-              className="rounded-xl border border-gray-200/90 bg-white shadow-sm"
+              className="rounded-xl border border-gray-200/90 bg-white shadow-sm dark:border-[#2e2e2e] dark:bg-transparent dark:shadow-none"
             >
               <div className="flex flex-wrap items-center gap-2 p-3">
                 <button
                   type="button"
                   onClick={() => toggleRoom(room.id)}
-                  className="text-gray-500 hover:text-gray-800"
+                  className="text-gray-500 hover:text-gray-800 dark:text-[#8c8c8c] dark:hover:text-[#f1f1f1]"
                   aria-expanded={open}
                 >
                   {open ? (
@@ -171,7 +171,7 @@ export function LocationTopologySettings({
                 <input
                   value={room.name}
                   onChange={(e) => updateRoom(room.id, { name: e.target.value })}
-                  className="min-w-0 flex-1 rounded-lg border border-transparent px-2 py-1 text-sm font-semibold hover:border-gray-200 focus:border-green-500 focus:outline-none"
+                  className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm font-semibold text-gray-900 hover:border-gray-200 focus:border-green-500 focus:outline-none dark:text-[#f1f1f1] dark:hover:border-[#3d3d3d]"
                 />
                 <SoftSelect
                   value={room.type}
@@ -182,14 +182,14 @@ export function LocationTopologySettings({
                   chipText={ROOM_PURPOSE_LABELS[room.type]}
                   ariaLabel={labels.type}
                   variant="compact"
-                  triggerClassName="max-w-[10rem] rounded-lg border border-gray-200 bg-gray-50"
+                  triggerClassName="max-w-[10rem] rounded-lg border border-gray-200 bg-gray-50 dark:border-[#3d3d3d] dark:bg-[#252525] dark:text-[#f1f1f1]"
                 />
                 <button
                   type="button"
                   onClick={() => {
                     if (window.confirm(labels.confirmDeleteRoom)) removeRoom(room.id)
                   }}
-                  className="rounded-lg p-2 text-red-500 hover:bg-red-50"
+                  className="rounded-lg p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/25"
                   aria-label={labels.deleteRoom}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -197,7 +197,7 @@ export function LocationTopologySettings({
               </div>
 
               {open ? (
-                <div className="border-t border-gray-100 px-3 pb-3 pl-10">
+                <div className="border-t border-gray-100 px-3 pb-3 pl-10 dark:border-[#2e2e2e]">
                   <div className="mt-2 flex flex-wrap gap-2">
                     <input
                       value={newFxName[room.id] ?? ''}
@@ -205,7 +205,7 @@ export function LocationTopologySettings({
                         setNewFxName((p) => ({ ...p, [room.id]: e.target.value }))
                       }
                       placeholder={labels.fixtureNamePh}
-                      className="min-w-[140px] flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                      className="min-w-[140px] flex-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-[#3d3d3d] dark:bg-[#252525] dark:text-[#f1f1f1]"
                     />
                     <button
                       type="button"
@@ -229,12 +229,12 @@ export function LocationTopologySettings({
                       const lv = levelsForFixture(f.id, levels)
                       const fxOpen = openFx[f.id] ?? true
                       return (
-                        <li key={f.id} className="rounded-lg bg-gray-50/80 py-1 pl-2">
+                        <li key={f.id} className="rounded-lg bg-gray-50/80 py-1 pl-2 dark:bg-white/[0.04]">
                           <div className="flex flex-wrap items-center gap-1">
                             <button
                               type="button"
                               onClick={() => toggleFx(f.id)}
-                              className="text-gray-500"
+                              className="text-gray-500 dark:text-[#8c8c8c]"
                             >
                               {fxOpen ? (
                                 <ChevronDown className="h-4 w-4" />
@@ -259,7 +259,7 @@ export function LocationTopologySettings({
                             </button>
                           </div>
                           {fxOpen ? (
-                            <div className="ml-5 mt-1 border-l border-gray-200 pl-2">
+                            <div className="ml-5 mt-1 border-l border-gray-200 pl-2 dark:border-[#3d3d3d]">
                               <div className="flex flex-wrap gap-1">
                                 <input
                                   value={newLvName[f.id] ?? ''}
@@ -270,7 +270,7 @@ export function LocationTopologySettings({
                                     }))
                                   }
                                   placeholder={labels.levelNamePh}
-                                  className="min-w-[120px] flex-1 rounded border border-gray-200 px-2 py-1 text-xs"
+                                  className="min-w-[120px] flex-1 rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-900 dark:border-[#3d3d3d] dark:bg-[#252525] dark:text-[#f1f1f1]"
                                 />
                                 <button
                                   type="button"
@@ -280,7 +280,7 @@ export function LocationTopologySettings({
                                     if (!addLevel(f.id, n)) return
                                     setNewLvName((p) => ({ ...p, [f.id]: '' }))
                                   }}
-                                  className="rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium"
+                                  className="rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-900 dark:border-[#3d3d3d] dark:bg-[#252525] dark:text-[#f1f1f1]"
                                 >
                                   {labels.addLevel}
                                 </button>

@@ -43,7 +43,7 @@ import type {
   SubstratePresetCode,
   VegCultivationTechniqueCode,
 } from '../../store/cultivationTypes'
-import type { AppLocale } from '../../store/useSettingsStore'
+import { type AppLocale, useSettingsStore } from '../../store/useSettingsStore'
 import type { TopologySelection } from '../../store/locationTopologyTypes'
 import type { PlantCardItem } from './PlantCard'
 import { useCrmStore } from '../../store/useCrmStore'
@@ -64,6 +64,7 @@ import {
 import { appendDiarioToBoard } from '../../lib/diario/appendPropagacionDiario'
 import { patchCultivoBoardItem } from '../../lib/cultivo/patchCultivoBoardItem'
 import { formatDiarioLogSummaryLine } from '../../lib/diario/formatDiarioSummary'
+import { formatInClubTimeZone } from '../../lib/clubTime'
 import { formatDiarioTimestamp } from '../../lib/diario/formatDiarioTimestamp'
 import { DiarioAlturaCanopyModal } from '../diario/DiarioAlturaCanopyModal'
 import { DiarioActionMenu } from '../diario/DiarioActionMenu'
@@ -102,10 +103,10 @@ function dayOfCycleFromStartIso(isoDate: string): number {
   return Math.max(1, fullDays + 1)
 }
 
-function formatRuDate(iso: string): string {
+function formatRuDate(iso: string, timeZone: string): string {
   const d = new Date(iso + (iso.length <= 10 ? 'T12:00:00' : ''))
   if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString('ru-RU', {
+  return formatInClubTimeZone(d, timeZone, 'ru', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -378,6 +379,7 @@ export function PropagacionBatchDetailSlideover({
   boardTab?: CultivoKanbanTab
 }) {
   const { t, locale } = useTranslation()
+  const clubTimeZone = useSettingsStore((s) => s.timezone)
   const isVegFlorCosecha =
     boardTab === 'vegetacion' || boardTab === 'floracion' || boardTab === 'cosecha'
   const isFlorOrCosecha = boardTab === 'floracion' || boardTab === 'cosecha'
@@ -1876,6 +1878,7 @@ export function PropagacionBatchDetailSlideover({
                     propagacionLog={item.propagacionLog}
                     age={age}
                     locale={locale}
+                    timeZone={clubTimeZone}
                     t={t}
                     inventory={dashInventory}
                     lateInventory={lateInv}
@@ -2005,7 +2008,7 @@ export function PropagacionBatchDetailSlideover({
                               <div className="min-w-0 flex-1 pb-6">
                                 <div className="flex items-start justify-between gap-2">
                                   <p className="text-[11px] font-medium text-gray-400 dark:text-[#8c8c8c]">
-                                    {formatDiarioTimestamp(e.at, locale)}
+                                    {formatDiarioTimestamp(e.at, locale, clubTimeZone)}
                                   </p>
                                   {e.author && e.kind !== 'note' ? (
                                     <p
@@ -2136,7 +2139,7 @@ export function PropagacionBatchDetailSlideover({
                             <dt className="text-xs font-semibold text-gray-800 dark:text-[#c8c8c8]">{t('germinacionDetail.fieldGermStart')}</dt>
                             <dd className="mt-1 text-gray-700 dark:text-[#d4d4d4]">
                               {item.germinationStartDate ? (
-                                formatRuDate(item.germinationStartDate)
+                                formatRuDate(item.germinationStartDate, clubTimeZone)
                               ) : (
                                 <EmptyActionLink onClick={openPassport}>{t('germinacionDetail.addGermDate')}</EmptyActionLink>
                               )}
@@ -2163,7 +2166,7 @@ export function PropagacionBatchDetailSlideover({
                       <div>
                         <dt className="text-xs font-semibold text-gray-800 dark:text-[#c8c8c8]">{t('germinacionDetail.fieldStartBatch')}</dt>
                         <dd className="mt-1 text-gray-700 dark:text-[#d4d4d4]">
-                          {formatRuDate(item.date)}
+                          {formatRuDate(item.date, clubTimeZone)}
                           <span className="ml-1.5 text-xs text-gray-500 dark:text-[#a3a3a3]">({item.date})</span>
                         </dd>
                       </div>

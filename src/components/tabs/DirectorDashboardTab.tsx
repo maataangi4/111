@@ -24,9 +24,15 @@ import {
   MapPin,
   X,
 } from 'lucide-react'
+import {
+  buildCalendarCellsInTimeZone,
+  getDayCardInClubZone,
+  zonedISODate,
+} from '../../lib/clubTime'
 import { C } from '../../lib/crmUi'
 import { bentoPanelRadius, bentoShell } from '../../lib/bentoShell'
 import { cn } from '../../lib/cn'
+import { type AppLocale, useSettingsStore } from '../../store/useSettingsStore'
 import type { PlantCardItem } from '../../store/cultivationTypes'
 import { useCultivationStore } from '../../store/useCultivationStore'
 import { LoteTraceabilityWaterfallWidget } from '../dashboard/LoteTraceabilityWaterfallWidget'
@@ -218,9 +224,6 @@ const DEFAULT_WIDGET_VISIBILITY: Record<WidgetId, boolean> = {
   cultivoOverview: true,
 }
 
-/** Abreviaturas del día (es-ES), sin puntos; índice = Date#getDay() (0 = domingo … 6 = sábado). */
-const ES_WEEKDAY_ABBR = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'] as const
-
 /** Verde del wordmark / iconos activos del rail (Dashboard.tsx). */
 const BRAND_GREEN = '#06663F'
 
@@ -308,47 +311,30 @@ const WIDGET_LABEL: Record<WidgetId, string> = {
 /** Lun→Dom (índice 0 = lun); sáb/dom columnas 5–6 = fin de semana. */
 const CAL_HEADER_LETTERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const
 
-function buildCalendarCells(view: Date): Array<{ kind: 'blank' } | { kind: 'day'; n: number; isToday: boolean; isWeekend: boolean }> {
-  const y = view.getFullYear()
-  const m = view.getMonth()
-  const first = new Date(y, m, 1)
-  const jsSun0 = first.getDay()
-  const monFirstCol = (jsSun0 + 6) % 7
-  const lastDay = new Date(y, m + 1, 0).getDate()
-  const todayD = view.getDate()
-  const todayM = view.getMonth()
-  const todayY = view.getFullYear()
-
-  const out: Array<{ kind: 'blank' } | { kind: 'day'; n: number; isToday: boolean; isWeekend: boolean }> = []
-  for (let i = 0; i < monFirstCol; i++) out.push({ kind: 'blank' })
-  for (let d = 1; d <= lastDay; d++) {
-    const col = (monFirstCol + d - 1) % 7
-    const isWeekend = col === 5 || col === 6
-    const isToday = d === todayD && m === todayM && y === todayY
-    out.push({ kind: 'day', n: d, isToday, isWeekend })
-  }
-  while (out.length % 7 !== 0) out.push({ kind: 'blank' })
-  return out
-}
-
 function LocalTimeSquareFlip({
   dashboardNow,
   localDayCard,
+  timeZone,
+  uiLocale,
 }: {
   dashboardNow: Date
   localDayCard: { weekdayLabel: string; monthLabel: string; dayOfMonth: number }
+  timeZone: string
+  uiLocale: AppLocale
 }) {
   const [flipped, setFlipped] = useState(false)
   const reduceMotion = useReducedMotion()
-  const calendarCells = useMemo(() => buildCalendarCells(dashboardNow), [dashboardNow])
-  const monthTitle = useMemo(
-    () =>
-      dashboardNow
-        .toLocaleDateString('es', { month: 'long' })
-        .replace(/\./g, '')
-        .toUpperCase(),
-    [dashboardNow],
+  const calendarCells = useMemo(
+    () => buildCalendarCellsInTimeZone(dashboardNow, dashboardNow, timeZone),
+    [dashboardNow, timeZone],
   )
+  const monthTitle = useMemo(() => {
+    const loc = uiLocale === 'ru' ? 'ru-RU' : 'es'
+    return new Intl.DateTimeFormat(loc, { timeZone, month: 'long' })
+      .format(dashboardNow)
+      .replace(/\./g, '')
+      .toUpperCase()
+  }, [dashboardNow, timeZone, uiLocale])
 
   const calRows = useMemo(() => {
     const rows: (typeof calendarCells)[] = []
@@ -381,7 +367,7 @@ function LocalTimeSquareFlip({
         </p>
         <div className="flex w-full flex-col items-center">
           <time
-            dateTime={dashboardNow.toISOString().slice(0, 10)}
+            dateTime={zonedISODate(dashboardNow, timeZone)}
             className={cn(
               '-mt-[21px] inline-block text-center font-semibold tabular-nums leading-none text-white',
               'font-[family-name:var(--font12)]',
@@ -685,18 +671,13 @@ export function DirectorDashboardTab({
     return () => window.clearInterval(tick)
   }, [])
 
-  const localDayCard = useMemo(() => {
-    const d = dashboardNow
-    const weekdayAbbr = ES_WEEKDAY_ABBR[d.getDay()]
-    const weekdayLabel = weekdayAbbr ? weekdayAbbr.charAt(0).toUpperCase() + weekdayAbbr.slice(1) : ''
-    const dayOfMonth = d.getDate()
-    const monthRaw = d.toLocaleDateString('es', { month: 'long' }).replace(/\./g, '')
-    const month3 = monthRaw.slice(0, 3)
-    const monthLabel = month3
-      ? month3.charAt(0).toUpperCase() + month3.slice(1).toLowerCase()
-      : ''
-    return { weekdayLabel, monthLabel, dayOfMonth }
-  }, [dashboardNow])
+  const clubTimeZone = useSettingsStore((s) => s.timezone)
+  const uiLocale = useSettingsStore((s) => s.locale)
+
+  const localDayCard = useMemo(
+    () => getDayCardInClubZone(dashboardNow, clubTimeZone, uiLocale),
+    [dashboardNow, clubTimeZone, uiLocale],
+  )
 
   useEffect(() => {
     try {
@@ -1332,7 +1313,12 @@ export function DirectorDashboardTab({
       localTime:
         L.localTime === 'square' ? (
           <div className="flex h-full min-h-0 w-full items-center justify-center">
-            <LocalTimeSquareFlip dashboardNow={dashboardNow} localDayCard={localDayCard} />
+            <LocalTimeSquareFlip
+              dashboardNow={dashboardNow}
+              localDayCard={localDayCard}
+              timeZone={clubTimeZone}
+              uiLocale={uiLocale}
+            />
           </div>
         ) : (
           <WidgetShell>
@@ -1355,7 +1341,7 @@ export function DirectorDashboardTab({
                 </p>
                 <div className="flex w-full flex-col items-center">
                   <time
-                    dateTime={dashboardNow.toISOString().slice(0, 10)}
+                    dateTime={zonedISODate(dashboardNow, clubTimeZone)}
                     className={cn(
                       '-mt-[21px] inline-block text-center text-7xl font-semibold tabular-nums leading-none text-white sm:text-8xl md:text-9xl',
                       'font-[family-name:var(--font12)]',

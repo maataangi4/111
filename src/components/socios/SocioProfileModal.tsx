@@ -10,8 +10,10 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { formatInClubTimeZone } from '../../lib/clubTime'
 import { cn } from '../../lib/cn'
 import { useCultivationStore } from '../../store/useCultivationStore'
+import { useSettingsStore } from '../../store/useSettingsStore'
 import { useSociosStore, deriveSocioView, type Socio } from '../../store/useSociosStore'
 import { DispensarModal } from './DispensarModal'
 
@@ -31,18 +33,6 @@ function fmtGrams(n: number) {
   return `${String(g).replace('.', ',')}g`
 }
 
-function formatLocalDate(iso: string) {
-  const d = new Date(iso)
-  if (!Number.isFinite(d.getTime())) return iso
-  return d.toLocaleString('es-AR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
 export function SocioProfileModal({
   socio,
   open,
@@ -56,6 +46,20 @@ export function SocioProfileModal({
   const [dispenseOpen, setDispenseOpen] = useState(false)
   const view = useMemo(() => (socio ? deriveSocioView(socio) : null), [socio])
   const upsertSocio = useSociosStore((s) => s.upsertSocio)
+  const clubTimeZone = useSettingsStore((s) => s.timezone)
+  const appLocale = useSettingsStore((s) => s.locale)
+
+  const formatLocalDate = (iso: string) => {
+    const d = new Date(iso)
+    if (!Number.isFinite(d.getTime())) return iso
+    return formatInClubTimeZone(d, clubTimeZone, appLocale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
 
   const harvestBatches = useCultivationStore((s) => s.harvestBatches)
   const stockBatches = useMemo(

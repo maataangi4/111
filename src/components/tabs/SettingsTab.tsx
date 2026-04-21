@@ -1,207 +1,160 @@
-import { motion } from 'framer-motion'
-import { Moon, Sun, Languages } from 'lucide-react'
-import { useEffect } from 'react'
+import { LayoutGroup, motion } from 'framer-motion'
+import { Building2, CreditCard, SlidersHorizontal, User } from 'lucide-react'
 import { C } from '../../lib/crmUi'
 import { cn } from '../../lib/cn'
 import type { SettingsNavSection } from '../../lib/settingsNavSection'
 import { useTranslation } from '../../i18n/useTranslation'
 import { LocationTopologySettings } from '../settings/LocationTopologySettings'
 import { TeamRolesSettings } from '../settings/TeamRolesSettings'
-import { SHELL_WALLPAPERS, shellWallpaperSrc } from '../../lib/shellWallpapers'
-import { useSettingsStore } from '../../store/useSettingsStore'
-import type { AppLocale, AppTheme } from '../../store/useSettingsStore'
+import { SettingsGeneralPanel } from '../settings/SettingsGeneralPanel'
 
-const SETTINGS_SCROLL_IDS: Record<SettingsNavSection, string> = {
-  general: 'settings-general',
-  profile: 'settings-profile',
-  company: 'settings-company',
-  subscription: 'settings-subscription',
+type SettingsTabProps = {
+  activeSection: SettingsNavSection
+  onSectionChange: (section: SettingsNavSection) => void
 }
 
-export function SettingsTab({ scrollToSection }: { scrollToSection?: SettingsNavSection | null }) {
+export function SettingsTab({ activeSection, onSectionChange }: SettingsTabProps) {
   const { t } = useTranslation()
-  const locale = useSettingsStore((s) => s.locale)
-  const theme = useSettingsStore((s) => s.theme)
-  const shellWallpaperId = useSettingsStore((s) => s.shellWallpaperId ?? null)
-  const setLocale = useSettingsStore((s) => s.setLocale)
-  const setTheme = useSettingsStore((s) => s.setTheme)
-  const setShellWallpaperId = useSettingsStore((s) => s.setShellWallpaperId)
 
-  const pill = (active: boolean) =>
-    cn(
-      'rounded-2xl px-4 py-2.5 text-sm font-medium transition',
-      active ? C.navActive : cn(C.btnSecondary, 'border bg-transparent'),
-    )
-
-  useEffect(() => {
-    if (scrollToSection == null) return
-    const id = SETTINGS_SCROLL_IDS[scrollToSection]
-    requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-  }, [scrollToSection])
+  const tabs = [
+    {
+      id: 'general' as const,
+      label: t('settings.generalSectionTitle'),
+      icon: SlidersHorizontal,
+    },
+    {
+      id: 'profile' as const,
+      label: t('settings.profileSectionTitle'),
+      icon: User,
+    },
+    {
+      id: 'company' as const,
+      label: t('nav.settingsSubCompany'),
+      icon: Building2,
+    },
+    {
+      id: 'subscription' as const,
+      label: t('settings.subscriptionSectionTitle'),
+      icon: CreditCard,
+    },
+  ] satisfies { id: SettingsNavSection; label: string; icon: typeof User }[]
 
   return (
-    <div>
-      <div className="mb-8">
-        <h2 className={cn('text-2xl font-semibold tracking-tight', C.heading)}>
+    <div className="min-h-0 w-full overflow-x-hidden px-6 pb-8 pt-6 md:px-8 md:pb-10 md:pt-8">
+      <header className="mb-6">
+        <h1 className="text-4xl font-semibold tracking-tight text-gray-900 dark:text-[#f1f1f1]">
           {t('settings.title')}
-        </h2>
-        <p className={cn('mt-1 text-sm', C.muted)}>{t('settings.subtitle')}</p>
-      </div>
+        </h1>
+      </header>
 
-      <div className="space-y-6">
-        <section
-          id="settings-general"
-          className={cn('scroll-mt-4 rounded-2xl border p-5 shadow-sm', C.card)}
+      <LayoutGroup id="settings-tabs-layout">
+        <nav
+          className="-mx-1 mb-8 flex gap-0.5 overflow-x-auto overscroll-x-contain pb-0.5 scrollbar-modern md:mx-0"
+          role="tablist"
+          aria-label={t('settings.title')}
         >
-          <h3 className={cn('font-semibold', C.heading)}>{t('settings.generalSectionTitle')}</h3>
-          <p className={cn('mt-2 text-sm', C.muted)}>{t('settings.generalSectionHint')}</p>
-
-          <div className="mt-8 border-t border-gray-200/80 pt-6 dark:border-[#3d3d3d]">
-            <h4 className={cn('text-sm font-semibold', C.heading)}>{t('settings.shellBackgroundTitle')}</h4>
-            <p className={cn('mt-1.5 text-xs leading-relaxed', C.muted)}>{t('settings.shellBackgroundHint')}</p>
-            <div className="mt-4 flex flex-wrap gap-2.5">
-              <motion.button
+          {tabs.map(({ id, label, icon: Icon }) => {
+            const active = activeSection === id
+            return (
+              <button
+                key={id}
                 type="button"
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setShellWallpaperId(null)}
+                role="tab"
+                aria-selected={active}
+                id={`settings-tab-${id}`}
+                onClick={() => onSectionChange(id)}
                 className={cn(
-                  'rounded-xl border px-3 py-2 text-xs font-medium transition',
-                  shellWallpaperId === null ? C.navActive : cn(C.btnSecondary, 'border bg-transparent'),
+                  'relative flex shrink-0 items-center gap-2 px-3 py-2.5 text-sm font-medium transition sm:px-4',
+                  active
+                    ? 'text-emerald-700 dark:text-emerald-300'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-[#a3a3a3] dark:hover:text-[#f1f1f1]',
                 )}
               >
-                {t('settings.shellBackgroundNone')}
-              </motion.button>
-              {SHELL_WALLPAPERS.map((w) => {
-                const active = shellWallpaperId === w.id
-                return (
-                  <motion.button
-                    key={w.id}
-                    type="button"
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setShellWallpaperId(w.id)}
-                    aria-pressed={active}
-                    title={w.id}
-                    className={cn(
-                      'relative h-14 w-[5.5rem] shrink-0 overflow-hidden rounded-xl border-2 bg-cover bg-center transition',
-                      active
-                        ? 'border-emerald-600 ring-2 ring-emerald-500/35 dark:border-emerald-500 dark:ring-emerald-400/25'
-                        : 'border-transparent opacity-90 hover:opacity-100',
-                    )}
-                    style={{ backgroundImage: `url(${shellWallpaperSrc(w.id)})` }}
-                  >
-                    <span className="sr-only">{w.id}</span>
-                  </motion.button>
-                )
-              })}
-            </div>
-          </div>
-        </section>
+                {active ? (
+                  <motion.span
+                    layoutId="settings-tab-underline"
+                    className="pointer-events-none absolute inset-x-2 bottom-0 z-0 h-[2px] rounded-full bg-emerald-500 dark:bg-emerald-400"
+                    transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+                    aria-hidden
+                  />
+                ) : null}
+                <Icon
+                  className={cn('relative z-[1] h-4 w-4 shrink-0', active ? 'opacity-100' : 'opacity-70')}
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                <span className="relative z-[1] whitespace-nowrap">{label}</span>
+              </button>
+            )
+          })}
+        </nav>
+      </LayoutGroup>
 
-        <section
-          id="settings-profile"
-          className={cn('scroll-mt-4 rounded-2xl border p-5 shadow-sm', C.card)}
-        >
-          <h3 className={cn('font-semibold', C.heading)}>{t('settings.profileSectionTitle')}</h3>
-          <p className={cn('mt-2 text-sm', C.muted)}>{t('settings.profileSectionHint')}</p>
-        </section>
-
-        <div
-          id="settings-company"
-          className="scroll-mt-4 rounded-2xl border-2 border-emerald-500/35 bg-emerald-50/30 p-1 dark:border-emerald-500/40 dark:bg-emerald-950/20"
-        >
-          <LocationTopologySettings
-            title={t('settings.topologyTitle')}
-            subtitle={t('settings.topologySubtitle')}
-            labels={{
-              addRoom: t('settings.topologyAddRoom'),
-              addFixture: t('settings.topologyAddFixture'),
-              addLevel: t('settings.topologyAddLevel'),
-              roomNamePh: t('settings.topologyRoomPh'),
-              fixtureNamePh: t('settings.topologyFixturePh'),
-              levelNamePh: t('settings.topologyLevelPh'),
-              deleteRoom: t('settings.topologyDeleteRoom'),
-              deleteFixture: t('settings.topologyDeleteFixture'),
-              deleteLevel: t('settings.topologyDeleteLevel'),
-              type: t('settings.topologyType'),
-              resetSample: t('settings.topologyResetSample'),
-              confirmDeleteRoom: t('settings.topologyConfirmDeleteRoom'),
-            }}
-          />
-          <div className="p-3 pt-0 sm:p-4 sm:pt-0">
-            <TeamRolesSettings />
+      <div
+        role="tabpanel"
+        id={`settings-panel-${activeSection}`}
+        aria-labelledby={`settings-tab-${activeSection}`}
+        className="min-h-[min(52vh,520px)]"
+      >
+        {activeSection === 'general' ? (
+          <div key="panel-general">
+            <section aria-labelledby="settings-heading-general" className="sr-only">
+              <h2 id="settings-heading-general">{t('settings.generalSectionTitle')}</h2>
+            </section>
+            <SettingsGeneralPanel />
           </div>
-        </div>
+        ) : null}
 
-        <p className={cn('text-center text-xs', C.muted)}>
-          — {t('settings.language')} · {t('settings.theme')} —
-        </p>
+        {activeSection === 'profile' ? (
+          <div key="panel-profile">
+            <section aria-labelledby="settings-heading-profile">
+              <h3 id="settings-heading-profile" className={cn('text-lg font-semibold', C.heading)}>
+                {t('settings.profileSectionTitle')}
+              </h3>
+              <p className={cn('mt-2 text-sm', C.muted)}>{t('settings.profileSectionHint')}</p>
+            </section>
+          </div>
+        ) : null}
 
-        <section className={cn('rounded-2xl border p-5 shadow-sm', C.card)}>
-          <div className="mb-4 flex items-center gap-2">
-            <Languages className="h-5 w-5 opacity-70" strokeWidth={1.75} />
-            <h3 className={cn('font-semibold', C.heading)}>{t('settings.language')}</h3>
+        {activeSection === 'company' ? (
+          <div key="panel-company">
+            <section className="space-y-6" aria-labelledby="settings-heading-company">
+              <h3 id="settings-heading-company" className="sr-only">
+                {t('nav.settingsSubCompany')}
+              </h3>
+              <LocationTopologySettings
+                title={t('settings.topologyTitle')}
+                subtitle={t('settings.topologySubtitle')}
+                labels={{
+                  addRoom: t('settings.topologyAddRoom'),
+                  addFixture: t('settings.topologyAddFixture'),
+                  addLevel: t('settings.topologyAddLevel'),
+                  roomNamePh: t('settings.topologyRoomPh'),
+                  fixtureNamePh: t('settings.topologyFixturePh'),
+                  levelNamePh: t('settings.topologyLevelPh'),
+                  deleteRoom: t('settings.topologyDeleteRoom'),
+                  deleteFixture: t('settings.topologyDeleteFixture'),
+                  deleteLevel: t('settings.topologyDeleteLevel'),
+                  type: t('settings.topologyType'),
+                  resetSample: t('settings.topologyResetSample'),
+                  confirmDeleteRoom: t('settings.topologyConfirmDeleteRoom'),
+                }}
+              />
+              <TeamRolesSettings />
+            </section>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                { id: 'es' as AppLocale, label: t('settings.spanish') },
-                { id: 'ru' as AppLocale, label: t('settings.russian') },
-              ] as const
-            ).map(({ id, label }) => (
-              <motion.button
-                key={id}
-                type="button"
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setLocale(id)}
-                className={pill(locale === id)}
-              >
-                {label}
-              </motion.button>
-            ))}
-          </div>
-        </section>
+        ) : null}
 
-        <section className={cn('rounded-2xl border p-5 shadow-sm', C.card)}>
-          <div className="mb-4 flex items-center gap-2">
-            {theme === 'dark' ? (
-              <Moon className="h-5 w-5 opacity-70" strokeWidth={1.75} />
-            ) : (
-              <Sun className="h-5 w-5 opacity-70" strokeWidth={1.75} />
-            )}
-            <h3 className={cn('font-semibold', C.heading)}>{t('settings.theme')}</h3>
+        {activeSection === 'subscription' ? (
+          <div key="panel-subscription">
+            <section aria-labelledby="settings-heading-subscription">
+              <h3 id="settings-heading-subscription" className={cn('text-lg font-semibold', C.heading)}>
+                {t('settings.subscriptionSectionTitle')}
+              </h3>
+              <p className={cn('mt-2 text-sm', C.muted)}>{t('settings.subscriptionSectionHint')}</p>
+            </section>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                { id: 'light' as AppTheme, label: t('settings.themeLight') },
-                { id: 'dark' as AppTheme, label: t('settings.themeDark') },
-              ] as const
-            ).map(({ id, label }) => (
-              <motion.button
-                key={id}
-                type="button"
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setTheme(id)}
-                className={pill(theme === id)}
-              >
-                {label}
-              </motion.button>
-            ))}
-          </div>
-          <p className={cn('mt-3 text-xs leading-relaxed', C.subheading)}>
-            {t('settings.themeHint')}
-          </p>
-        </section>
-
-        <section
-          id="settings-subscription"
-          className={cn('scroll-mt-4 rounded-2xl border p-5 shadow-sm', C.card)}
-        >
-          <h3 className={cn('font-semibold', C.heading)}>{t('settings.subscriptionSectionTitle')}</h3>
-          <p className={cn('mt-2 text-sm', C.muted)}>{t('settings.subscriptionSectionHint')}</p>
-        </section>
+        ) : null}
       </div>
     </div>
   )
