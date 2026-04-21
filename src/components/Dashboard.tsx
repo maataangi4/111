@@ -15,7 +15,6 @@ import {
   Sprout,
   Sun,
   TestTube2,
-  Scissors,
   Users,
   Wrench,
   X,
@@ -50,7 +49,6 @@ import { useCultivationStore } from '../store/useCultivationStore'
 import { useCrmStore } from '../store/useCrmStore'
 import { useSociosStore } from '../store/useSociosStore'
 import { AgronomyTab } from './tabs/AgronomyTab'
-import { PostCosechaTab } from './tabs/PostCosechaTab'
 import { CultivoErrorBoundary } from './CultivoErrorBoundary'
 import { CultivoTab } from './tabs/CultivoTab'
 import { DirectorDashboardTab } from './tabs/DirectorDashboardTab'
@@ -69,7 +67,6 @@ export type DashboardTab =
   | 'dashboard'
   | 'genetics'
   | 'cultivo'
-  | 'postharvest'
   | 'inventory'
   | 'socios'
   | 'movimientos'
@@ -90,7 +87,6 @@ const navIds: { id: DashboardTab; icon: typeof LayoutGrid; labelKey: string }[] 
   { id: 'dashboard', icon: LayoutGrid, labelKey: 'nav.dashboardSummary' },
   { id: 'genetics', icon: TestTube2, labelKey: 'nav.geneticsBank' },
   { id: 'cultivo', icon: Sprout, labelKey: 'nav.cultivo' },
-  { id: 'postharvest', icon: Scissors, labelKey: 'nav.postHarvest' },
   { id: 'inventory', icon: FolderOpen, labelKey: 'nav.inventory' },
   { id: 'socios', icon: Users, labelKey: 'nav.socios' },
   { id: 'movimientos', icon: ListChecks, labelKey: 'nav.movimientos' },
@@ -1393,7 +1389,7 @@ export function Dashboard() {
                   className={cn(
                     tab === 'cultivo' || tab === 'socios' || tab === 'movimientos'
                       ? 'min-h-0 w-full flex-1 p-0'
-                      : cn('p-8', tab === 'postharvest' ? 'mx-auto w-full max-w-7xl' : 'mx-auto w-full max-w-6xl'),
+                      : 'p-8 mx-auto w-full max-w-6xl',
                   )}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -1410,7 +1406,6 @@ export function Dashboard() {
                         <CultivoTab />
                       </CultivoErrorBoundary>
                     )}
-                    {tab === 'postharvest' && <PostCosechaTab />}
                     {tab === 'inventory' && <StockTab />}
                     {tab === 'socios' && <SociosTab />}
                     {tab === 'movimientos' && <MovimientosTab />}

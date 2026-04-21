@@ -45,6 +45,7 @@ import { useCultivationStore } from '../../store/useCultivationStore'
 import { useLocationTopologyStore } from '../../store/useLocationTopologyStore'
 import { useTranslation } from '../../i18n/useTranslation'
 import { SoftSelect } from '../ui/SoftSelect'
+import { PostCosechaTab } from './PostCosechaTab'
 
 const CREATE_LOT_EXCLUDED_ROOM_TYPES: RoomPurpose[] = ['quarantine', 'drying']
 
@@ -577,6 +578,7 @@ export function CultivoTab() {
     setDetailItemId((p) => (p && removeSet.has(p) ? null : p))
     setHarvestItemId(null)
     setHarvestBatchPlantIds(null)
+    setActiveTab('cosecha')
   }
 
   const stageTitleMap = useMemo(
@@ -1135,6 +1137,12 @@ export function CultivoTab() {
                 })
               : null}
         </section>
+
+        {activeTab === 'cosecha' ? (
+          <div className="mt-8">
+            <PostCosechaTab />
+          </div>
+        ) : null}
 
         {detailItem &&
         (activeTab === 'propagacion' ||
