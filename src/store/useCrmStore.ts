@@ -36,6 +36,7 @@ function normalizeEmployee(raw: unknown): Employee {
       'dataUrl' in x.reprocan
         ? (x.reprocan as AttachedFile)
         : null,
+    telegramChatId: typeof x.telegramChatId === 'string' ? x.telegramChatId : undefined,
   }
 }
 
@@ -118,6 +119,7 @@ interface CrmState {
   removeEmployee: (id: string) => void
   setEmployeeReprocan: (id: string, file: AttachedFile | null) => void
   setEmployeePhoto: (id: string, file: AttachedFile | null) => void
+  setEmployeeTelegramChatId: (id: string, chatId: string | undefined) => void
 
   addVaultDocument: (doc: Omit<VaultDocument, 'id' | 'uploadedAt'> & { uploadedAt?: string }) => void
   removeVaultDocument: (id: string) => void
@@ -195,6 +197,7 @@ const buildInitial = (): Omit<
   | 'removeEmployee'
   | 'setEmployeeReprocan'
   | 'setEmployeePhoto'
+  | 'setEmployeeTelegramChatId'
   | 'addVaultDocument'
   | 'removeVaultDocument'
 > => ({
@@ -339,6 +342,12 @@ export const useCrmStore = create<CrmState>()(
         set((s) => ({
           employees: s.employees.map((e) =>
             e.id === id ? { ...e, photo: file } : e,
+          ),
+        })),
+      setEmployeeTelegramChatId: (id, chatId) =>
+        set((s) => ({
+          employees: s.employees.map((e) =>
+            e.id === id ? { ...e, telegramChatId: chatId } : e,
           ),
         })),
 

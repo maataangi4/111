@@ -115,6 +115,7 @@ const es: MessageDict = {
     settingsSubCompany: 'Empresa / licencias',
     settingsSubSubscription: 'Suscripción',
     tools: 'Herramientas',
+    employees: 'Empleados',
     integrations: 'Integraciones',
   },
   tools: {
@@ -1580,6 +1581,7 @@ const ru: MessageDict = {
     settingsSubCompany: 'Компания / лицензии',
     settingsSubSubscription: 'Подписка',
     tools: 'Инструменты',
+    employees: 'Сотрудники',
     integrations: 'Интеграции',
   },
   tools: {

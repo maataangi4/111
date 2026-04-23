@@ -38,6 +38,16 @@ const ALL_IDS: IntegrationId[] = [
   'trolmaster',
 ]
 
+const TELEGRAM_SEED: Partial<IntegrationEntry> = {
+  connected: true,
+  lastConnectedAt: new Date().toISOString(),
+  config: {
+    botToken: '8637490574:AAF0s5ReeZFasBZeiOUJwYtB4_H3Er-f36U',
+    chatId: '-5294330075',
+  },
+  info: { firstName: 'Canspace_bot', username: 'CanspaceBot' },
+}
+
 function makeDefault(id: IntegrationId): IntegrationEntry {
   return { id, connected: false, lastConnectedAt: null, config: {}, info: {} }
 }
@@ -45,6 +55,7 @@ function makeDefault(id: IntegrationId): IntegrationEntry {
 function defaultIntegrations(): Record<IntegrationId, IntegrationEntry> {
   const out = {} as Record<IntegrationId, IntegrationEntry>
   for (const id of ALL_IDS) out[id] = makeDefault(id)
+  out.telegram = { ...makeDefault('telegram'), ...TELEGRAM_SEED }
   return out
 }
 
@@ -102,9 +113,12 @@ export const useIntegrationsStore = create<IntegrationsState>()(
       merge: (persisted, current) => {
         const p = persisted as Partial<IntegrationsState>
         const base = defaultIntegrations()
+        const saved = p.integrations ?? {}
+        // Si el localStorage no tiene telegram conectado, usamos el seed
+        if (!saved.telegram?.connected) saved.telegram = base.telegram
         return {
           ...current,
-          integrations: { ...base, ...(p.integrations ?? {}) },
+          integrations: { ...base, ...saved },
         }
       },
     },

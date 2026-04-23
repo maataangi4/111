@@ -16,6 +16,7 @@ import {
   Sprout,
   Sun,
   TestTube2,
+  UserCog,
   Users,
   Wrench,
   X,
@@ -59,6 +60,7 @@ import { MovimientosTab } from './tabs/MovimientosTab'
 import { StockTab } from './tabs/StockTab'
 import { ToolsTab } from './tabs/ToolsTab'
 import { IntegrationsTab } from './tabs/IntegrationsTab'
+import { EmployeesTab } from './tabs/EmployeesTab'
 import { LinajeDelLoteModal } from './traceability/LinajeDelLoteModal'
 import { GreenLuckLogoMark } from './branding/GreenLuckLogoMark'
 import { PricingModal } from './PricingModal'
@@ -73,6 +75,7 @@ export type DashboardTab =
   | 'socios'
   | 'movimientos'
   | 'tools'
+  | 'employees'
   | 'integrations'
   | 'settings'
 
@@ -94,6 +97,7 @@ const navIds: { id: DashboardTab; icon: typeof LayoutGrid; labelKey: string }[] 
   { id: 'socios', icon: Users, labelKey: 'nav.socios' },
   { id: 'movimientos', icon: ListChecks, labelKey: 'nav.movimientos' },
   { id: 'tools', icon: Wrench, labelKey: 'nav.tools' },
+  { id: 'employees', icon: UserCog, labelKey: 'nav.employees' },
   { id: 'integrations', icon: Plug, labelKey: 'nav.integrations' },
   { id: 'settings', icon: Settings, labelKey: 'nav.settings' },
 ]
@@ -1414,6 +1418,7 @@ export function Dashboard() {
                     {tab === 'socios' && <SociosTab />}
                     {tab === 'movimientos' && <MovimientosTab />}
                     {tab === 'tools' && <ToolsTab />}
+                    {tab === 'employees' && <EmployeesTab />}
                     {tab === 'integrations' && <IntegrationsTab />}
                     {tab === 'settings' && (
                       <SettingsTab scrollToSection={settingsSection} />

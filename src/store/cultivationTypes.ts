@@ -500,6 +500,10 @@ export type PlantCardItem = {
   /** Маркировка группы по цвету стяжки (без сканера). */
   colorTagKey?: BraceletColorTagKey
   seedType: 'Semilla' | 'Clon'
+  /** Sub-tipo de semilla: genética certificada INASE o nueva genética propia del club. */
+  seedOriginType?: 'certificada' | 'propia'
+  /** Código INASE — solo cuando seedOriginType === 'certificada'. */
+  inaseCode?: string
   /** Esqueje propio (madre en registro) vs comprado / externo. */
   cloneOrigin?: CloneOriginKind
   /** Proveedor u origen si `cloneOrigin === 'externo'`. */

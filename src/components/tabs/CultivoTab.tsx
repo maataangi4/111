@@ -8,6 +8,7 @@ import {
   Leaf,
   MapPin,
   Plus,
+  Shield,
   Sprout,
   Tags,
   Wheat,
@@ -152,6 +153,8 @@ export function CultivoTab() {
   const [createKind, setCreateKind] = useState<CreateKind>('lote')
   const [createStrain, setCreateStrain] = useState('')
   const [createSeedType, setCreateSeedType] = useState<'Semilla' | 'Clon'>('Semilla')
+  const [createSeedOriginType, setCreateSeedOriginType] = useState<'certificada' | 'propia' | ''>('')
+  const [createInaseCode, setCreateInaseCode] = useState('')
   const [createQty, setCreateQty] = useState('50')
   const [createDate, setCreateDate] = useState(localIsoDate())
   const [createGrowMode, setCreateGrowMode] = useState<'indoor' | 'outdoor'>('indoor')
@@ -703,6 +706,16 @@ export function CultivoTab() {
     }
     setCreateTopologyError(false)
 
+    if (createSeedType === 'Semilla') {
+      if (!createSeedOriginType) {
+        window.alert('Seleccioná el tipo de semilla: Genética Certificada o Nueva Genética / Propia.')
+        return
+      }
+      if (createSeedOriginType === 'certificada' && !createInaseCode.trim()) {
+        window.alert('El código INASE es obligatorio para semilla certificada.')
+        return
+      }
+    }
     if (createSeedType === 'Clon') {
       if (createCloneOrigin !== 'propio' && createCloneOrigin !== 'externo') {
         window.alert(t('cultivoBoard.errCloneOriginRequired'))
@@ -776,6 +789,8 @@ export function CultivoTab() {
         createSeedType === 'Clon' && createCloneOrigin === 'propio'
           ? createMotherRegistryId.trim() || undefined
           : undefined,
+      seedOriginType: createSeedType === 'Semilla' ? createSeedOriginType || undefined : undefined,
+      inaseCode: createSeedType === 'Semilla' && createSeedOriginType === 'certificada' ? createInaseCode.trim() || undefined : undefined,
       cloneOrigin: createSeedType === 'Clon' ? createCloneOrigin || undefined : undefined,
       cloneExternalSource:
         createSeedType === 'Clon' && createCloneOrigin === 'externo'
@@ -1257,6 +1272,8 @@ export function CultivoTab() {
                           setCreateCloneOrigin('')
                           setCreateMotherRegistryId('')
                           setCreateCloneExternalSource('')
+                          setCreateSeedOriginType('')
+                          setCreateInaseCode('')
                         }}
                         options={[...createSeedTypeOptions]}
                         chipText={
@@ -1293,6 +1310,70 @@ export function CultivoTab() {
                     />
                   </div>
                 </div>
+                {createSeedType === 'Semilla' && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-gray-600">
+                      Tipo de semilla <span className="text-red-500">*</span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCreateSeedOriginType('certificada')}
+                        className={cn(
+                          'flex flex-col items-start rounded-xl border px-3 py-2.5 text-left transition-colors',
+                          createSeedOriginType === 'certificada'
+                            ? 'border-green-600 bg-green-50 ring-1 ring-green-600'
+                            : 'border-gray-200 bg-white hover:border-gray-300',
+                        )}
+                      >
+                        <span className="text-sm font-medium text-gray-800">Genética Certificada</span>
+                        <span className="mt-0.5 text-[11px] leading-tight text-gray-500">
+                          Comprada oficialmente, con código INASE.
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setCreateSeedOriginType('propia'); setCreateInaseCode('') }}
+                        className={cn(
+                          'flex flex-col items-start rounded-xl border px-3 py-2.5 text-left transition-colors',
+                          createSeedOriginType === 'propia'
+                            ? 'border-green-600 bg-green-50 ring-1 ring-green-600'
+                            : 'border-gray-200 bg-white hover:border-gray-300',
+                        )}
+                      >
+                        <span className="text-sm font-medium text-gray-800">Nueva Genética / Propia</span>
+                        <span className="mt-0.5 text-[11px] leading-tight text-gray-500">
+                          Semilla sin documentación, nueva genética del club.
+                        </span>
+                      </button>
+                    </div>
+
+                    {createSeedOriginType === 'certificada' && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">
+                          Número INASE <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
+                          placeholder="Ej: INASE-2024-00123"
+                          value={createInaseCode}
+                          onChange={(e) => setCreateInaseCode(e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {createSeedOriginType && (
+                      <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200/60 bg-emerald-50/50 px-3 py-2.5 backdrop-blur-sm">
+                        <Shield className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={1.75} />
+                        <p className="text-[11px] leading-snug text-emerald-800">
+                          Para cumplir con la ley, el sistema registrará automáticamente esta cepa bajo el marco legal de{' '}
+                          <span className="font-semibold">Proyecto de Fitomejoramiento (I+D)</span>.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {createSeedType === 'Clon' ? (
                   <div className="space-y-3">
                     <label className="block">
