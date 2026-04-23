@@ -215,8 +215,7 @@ const buildInitial = (): Omit<
   | 'addVaultDocument'
   | 'removeVaultDocument'
 > => ({
-  /** Временно true: экран логина отключён, удобнее тестировать. */
-  authenticated: true,
+  authenticated: false,
   currentUserName: '',
   investments: mockInvestments,
   stock: mockStock,

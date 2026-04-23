@@ -6,6 +6,7 @@ import { C } from '../../lib/crmUi'
 import { cn } from '../../lib/cn'
 import { readFileAsDataUrl } from '../../lib/readFileAsDataUrl'
 import { useCrmStore } from '../../store/useCrmStore'
+import { telegramSendMessage } from '../../lib/integrations/telegram'
 import { useIntegrationsStore } from '../../store/useIntegrationsStore'
 import { AttachmentPreviewModal } from '../ui/AttachmentPreviewModal'
 
@@ -45,37 +46,31 @@ export function EmployeesTab() {
   async function saveLink(empId: string, empName: string) {
     const chatId = chatIdInput.trim()
     if (!chatId) return
+    if (!/^-?\d+$/.test(chatId)) {
+      setSendError('El Chat ID debe ser solo números. Ej: 1504808624')
+      return
+    }
 
     setSendError('')
-    setEmployeeTelegramChatId(empId, chatId)
 
     const token = useIntegrationsStore.getState().integrations.telegram?.config.botToken ?? ''
-
     if (!token) {
       setSendError('Token de Telegram no configurado.')
       return
     }
 
     try {
-      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: `Hola ${empName}! Tu cuenta de Telegram esta vinculada a Canspace. Recibiras las notificaciones del cultivo en este chat.`,
-        }),
-      })
-      const json: { ok: boolean; description?: string } = await res.json()
-      if (!json.ok) {
-        setSendError(`Error: ${json.description ?? 'respuesta inválida de Telegram'}`)
-        return
-      }
-    } catch {
-      setSendError('No se pudo conectar con Telegram. Verificá el Chat ID.')
+      await telegramSendMessage(
+        token,
+        chatId,
+        `Hola ${empName}! Tu cuenta de Telegram esta vinculada a Canspace. Recibiras las notificaciones del cultivo en este chat.`,
+      )
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : 'Error de red desconocido')
       return
     }
 
-    // Solo cierra si todo salió bien
+    setEmployeeTelegramChatId(empId, chatId)
     setLinkingId(null)
     setChatIdInput('')
     setJustLinked(empId)

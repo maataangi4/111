@@ -3,6 +3,7 @@ import { CheckCircle2, Copy, Eye, EyeOff, Plus, RefreshCw, Send, Trash2, UserCog
 import { Fragment, useState } from 'react'
 import { C } from '../../lib/crmUi'
 import { cn } from '../../lib/cn'
+import { telegramSendMessage } from '../../lib/integrations/telegram'
 import { useCrmStore } from '../../store/useCrmStore'
 import { useIntegrationsStore } from '../../store/useIntegrationsStore'
 import type { EmployeeRole } from '../../store/types'
@@ -59,24 +60,23 @@ export function TeamRolesSettings() {
   async function saveLink(empId: string, empName: string) {
     const chatId = chatIdInput.trim()
     if (!chatId) return
+    if (!/^-?\d+$/.test(chatId)) {
+      setLinkError('El Chat ID debe ser solo números. Ej: 1504808624')
+      return
+    }
     setLinkError('')
 
     const token = useIntegrationsStore.getState().integrations.telegram?.config.botToken ?? ''
     if (!token) { setLinkError('Bot no configurado en Integraciones.'); return }
 
     try {
-      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: `Hola ${empName}! Tu cuenta de Telegram esta vinculada a Canspace. Recibiras las notificaciones del cultivo directamente aqui.`,
-        }),
-      })
-      const json: { ok: boolean; description?: string } = await res.json()
-      if (!json.ok) { setLinkError(`Error: ${json.description ?? 'respuesta inválida'}`); return }
-    } catch {
-      setLinkError('No se pudo conectar con Telegram. Verificá el Chat ID.')
+      await telegramSendMessage(
+        token,
+        chatId,
+        `Hola ${empName}! Tu cuenta de Telegram esta vinculada a Canspace. Recibiras las notificaciones del cultivo directamente aqui.`,
+      )
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : 'Error de red desconocido')
       return
     }
 
