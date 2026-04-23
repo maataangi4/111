@@ -8,11 +8,6 @@ import { useCrmStore } from '../../store/useCrmStore'
 import { useIntegrationsStore } from '../../store/useIntegrationsStore'
 import type { EmployeeRole } from '../../store/types'
 
-const ROLE_LABELS: Record<EmployeeRole, string> = {
-  manager: 'Manager',
-  operator: 'Operador',
-}
-
 const ROLE_BADGE: Record<EmployeeRole, string> = {
   manager: 'border border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-800/60 dark:bg-blue-950/40 dark:text-blue-300',
   operator: 'border border-slate-200 bg-slate-100 text-slate-700 dark:border-[#3d3d3d] dark:bg-[#2a2a2a] dark:text-[#d4d4d4]',

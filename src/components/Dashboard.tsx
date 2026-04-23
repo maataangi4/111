@@ -16,7 +16,6 @@ import {
   Sprout,
   Sun,
   TestTube2,
-  UserCog,
   Users,
   Wrench,
   X,
