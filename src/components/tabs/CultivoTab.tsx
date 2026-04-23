@@ -796,7 +796,6 @@ export function CultivoTab() {
         return
       }
     }
-
     if (createSeedType === 'Clon') {
       if (createCloneOrigin !== 'propio' && createCloneOrigin !== 'externo') {
         window.alert(t('cultivoBoard.errCloneOriginRequired'))

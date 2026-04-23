@@ -505,7 +505,7 @@ export type PlantCardItem = {
    * Usado para compliance / auditoría.
    */
   seedComplianceType?: 'certificada' | 'propia'
-  /** Semillas certificadas: número / código INASE (obligatorio cuando aplica). */
+  /** Semillas certificadas: código / referencia INASE libre (opcional, legado). */
   inaseCode?: string
   /** INASE: variedad (N° INASE) */
   inaseVarietyId?: string

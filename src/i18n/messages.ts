@@ -115,6 +115,7 @@ const es: MessageDict = {
     settingsSubCompany: 'Empresa / licencias',
     settingsSubSubscription: 'Suscripción',
     tools: 'Herramientas',
+    integrations: 'Integraciones',
   },
   tools: {
     title: 'Inventario de herramientas',
@@ -1649,6 +1650,7 @@ const ru: MessageDict = {
     settingsSubCompany: 'Компания / лицензии',
     settingsSubSubscription: 'Подписка',
     tools: 'Инструменты',
+    integrations: 'Интеграции',
   },
   tools: {
     title: 'Склад инструментов и материалов',

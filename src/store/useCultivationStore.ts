@@ -1,5 +1,8 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
+import { dispatchTelegram } from '../lib/notifications/bus'
+import { toUINotification } from '../lib/notifications/events'
+import { useSociosStore } from './useSociosStore'
 import {
   sanitizeStrainTagIds,
   type StrainTagListKey,
@@ -1199,10 +1202,16 @@ function normalizePlantCardItem(x: Partial<PlantCardItem> & Record<string, unkno
     trackingType:
       x.trackingType === 'planta' || x.trackingType === 'lote' ? x.trackingType : undefined,
     seedType: x.seedType === 'Clon' ? 'Clon' : 'Semilla',
-    seedComplianceType:
-      x.seedType !== 'Clon' && (x.seedComplianceType === 'certificada' || x.seedComplianceType === 'propia')
-        ? x.seedComplianceType
-        : undefined,
+    seedComplianceType: (() => {
+      if (x.seedType === 'Clon') return undefined
+      if (x.seedComplianceType === 'certificada' || x.seedComplianceType === 'propia') {
+        return x.seedComplianceType
+      }
+      const legacy = (x as Record<string, unknown>).seedOriginType
+      if (legacy === 'certificada' || legacy === 'propia') return legacy
+      return undefined
+    })(),
+    inaseCode: optStr(x.inaseCode),
     inaseVarietyId: optStr(x.inaseVarietyId),
     inaseVarietyName: optStr(x.inaseVarietyName),
     inaseProviderRncyfs: optStr(x.inaseProviderRncyfs),
@@ -1636,7 +1645,7 @@ export const useCultivationStore = create<CultivationState>()(
               : update,
         })),
 
-      recordCultivoTransplant: (payload) =>
+      recordCultivoTransplant: (payload) => {
         set((s) => ({
           cultivoTransplantHistory: [
             {
@@ -1656,9 +1665,20 @@ export const useCultivationStore = create<CultivationState>()(
             },
             ...s.cultivoTransplantHistory,
           ],
-        })),
+        }))
+        const event = {
+          type: 'transplant' as const,
+          batchId: payload.batchId,
+          strain: payload.strain,
+          transferred: payload.transferredCount,
+          losses: payload.lossCount,
+          lossReason: payload.lossReasonLabel ?? '—',
+        }
+        useSociosStore.getState().pushNotification(toUINotification(event))
+        dispatchTelegram(event)
+      },
 
-      recordCultivoFlowerMove: (payload) =>
+      recordCultivoFlowerMove: (payload) => {
         set((s) => ({
           cultivoFlowerMoveHistory: [
             {
@@ -1668,7 +1688,18 @@ export const useCultivationStore = create<CultivationState>()(
             },
             ...s.cultivoFlowerMoveHistory,
           ],
-        })),
+        }))
+        const event = {
+          type: 'flower_move' as const,
+          strain: payload.strain,
+          count: payload.selectedCount,
+          bajas: payload.bajasCount,
+          bajaReason: payload.bajaReasonLabel ?? '—',
+          location: payload.locationLabel,
+        }
+        useSociosStore.getState().pushNotification(toUINotification(event))
+        dispatchTelegram(event)
+      },
 
       setTableStage: (tableId, stage) => {
         const table = get().tables.find((t) => t.id === tableId)
@@ -2126,10 +2157,23 @@ export const useCultivationStore = create<CultivationState>()(
             tables: nextTables,
           }
         })
+        const room = get().rooms.find((r) => r.id === roomTrim)
+        const table = get().tables.find((tb) => tb.id === tableTrim)
+        const locationLabel = [room?.label, table?.label].filter(Boolean).join(' · ') || roomTrim
+        const event = {
+          type: 'seedling_registered' as const,
+          plantId: braceletId.trim(),
+          strain: seed.strain.trim(),
+          seedlingId,
+          location: locationLabel,
+        }
+        useSociosStore.getState().pushNotification(toUINotification(event))
+        dispatchTelegram(event)
         return { ok: true }
       },
 
-      setPlantStatus: (id, status, deathReason) =>
+      setPlantStatus: (id, status, deathReason) => {
+        const prevPlant = get().plants.find((p) => p.id === id)
         set((s) => {
           const nowIso = new Date().toISOString()
           return {
@@ -2174,7 +2218,30 @@ export const useCultivationStore = create<CultivationState>()(
               }
             }),
           }
-        }),
+        })
+        if (!prevPlant) return
+        const room = get().rooms.find((r) => r.id === prevPlant.roomId)
+        const locationLabel = room?.label ?? prevPlant.roomId ?? '—'
+        if (status === 'muerta') {
+          const event = {
+            type: 'plant_death' as const,
+            plantId: id,
+            strain: prevPlant.strain,
+            reason: deathReason?.trim() || '—',
+            location: locationLabel,
+          }
+          useSociosStore.getState().pushNotification(toUINotification(event))
+          dispatchTelegram(event)
+        } else if (status === 'cuarentena' && prevPlant.status !== 'cuarentena') {
+          const event = { type: 'plant_quarantine' as const, plantId: id, strain: prevPlant.strain, action: 'enter' as const }
+          useSociosStore.getState().pushNotification(toUINotification(event))
+          dispatchTelegram(event)
+        } else if (status === 'activa' && prevPlant.status === 'cuarentena') {
+          const event = { type: 'plant_quarantine' as const, plantId: id, strain: prevPlant.strain, action: 'exit' as const }
+          useSociosStore.getState().pushNotification(toUINotification(event))
+          dispatchTelegram(event)
+        }
+      },
 
       setPlantGrowthStage: (id, stage) => {
         const plant = get().plants.find((p) => p.id === id)
@@ -2490,6 +2557,15 @@ export const useCultivationStore = create<CultivationState>()(
         set((s) => ({
           harvestBatches: [batch, ...s.harvestBatches],
         }))
+        const harvestEvent = {
+          type: 'harvest' as const,
+          batchId: batch.id,
+          strain: batch.strain,
+          plantCount: batch.plantCount,
+          location: [batch.roomLabel, batch.tableLabel].filter(Boolean).join(' · '),
+        }
+        useSociosStore.getState().pushNotification(toUINotification(harvestEvent))
+        dispatchTelegram(harvestEvent)
         return batch.id
       },
 

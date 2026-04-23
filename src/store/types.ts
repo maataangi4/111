@@ -58,6 +58,7 @@ export interface Employee {
   dni: string
   photo: AttachedFile | null
   reprocan: AttachedFile | null
+  telegramChatId?: string
 }
 
 export interface VaultDocument {

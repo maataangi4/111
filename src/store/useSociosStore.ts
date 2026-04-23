@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
+import { dispatchTelegram } from '../lib/notifications/bus'
 
 export type SocioLegalStatus = 'vigente' | 'expira' | 'vencido'
 export type SocioFinancialStatus = 'al_dia' | 'deuda'
@@ -281,6 +282,12 @@ export const useSociosStore = create<SociosState>()(
           body: `${socio.nombre} · ${Math.round(rec.grams * 10) / 10}g · ${t === 'legal' ? 'Legal' : 'Interno'} · ${label}`,
           tone: 'emerald',
         })
+        dispatchTelegram({
+          type: 'dispense',
+          socioNombre: socio.nombre,
+          grams: rec.grams,
+          batchLabel: label,
+        })
         return { ok: true }
       },
 
@@ -340,6 +347,13 @@ export const useSociosStore = create<SociosState>()(
           title: 'Operación anulada',
           body: `${orig.socioNombre} · ${Math.abs(orig.grams)}g · ${orig.harvestBatchLabel || orig.harvestBatchId} · ${reason}`,
           tone: 'amber',
+        })
+        dispatchTelegram({
+          type: 'dispense_revoke',
+          socioNombre: orig.socioNombre,
+          grams: Math.abs(orig.grams),
+          batchLabel: orig.harvestBatchLabel || orig.harvestBatchId,
+          reason,
         })
         return { ok: true, reversalId }
       },
