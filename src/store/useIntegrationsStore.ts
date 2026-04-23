@@ -16,12 +16,14 @@ export interface IntegrationEntry {
   connected: boolean
   lastConnectedAt: string | null
   config: Record<string, string>
+  info: Record<string, string>
 }
 
 interface IntegrationsState {
   integrations: Record<IntegrationId, IntegrationEntry>
   patchConfig: (id: IntegrationId, patch: Record<string, string>) => void
   setConnected: (id: IntegrationId, connected: boolean) => void
+  setInfo: (id: IntegrationId, info: Record<string, string>) => void
   disconnect: (id: IntegrationId) => void
 }
 
@@ -37,7 +39,7 @@ const ALL_IDS: IntegrationId[] = [
 ]
 
 function makeDefault(id: IntegrationId): IntegrationEntry {
-  return { id, connected: false, lastConnectedAt: null, config: {} }
+  return { id, connected: false, lastConnectedAt: null, config: {}, info: {} }
 }
 
 function defaultIntegrations(): Record<IntegrationId, IntegrationEntry> {
@@ -75,6 +77,14 @@ export const useIntegrationsStore = create<IntegrationsState>()(
                 ? new Date().toISOString()
                 : (s.integrations[id]?.lastConnectedAt ?? null),
             },
+          },
+        })),
+
+      setInfo: (id, info) =>
+        set((s) => ({
+          integrations: {
+            ...s.integrations,
+            [id]: { ...s.integrations[id], info },
           },
         })),
 

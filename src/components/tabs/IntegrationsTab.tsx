@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  AlertCircle,
   CheckCircle2,
   ChevronRight,
   Cloud,
@@ -21,7 +22,12 @@ import { useState, type ComponentType } from 'react'
 import { cn } from '../../lib/cn'
 import { C } from '../../lib/crmUi'
 import {
+  telegramGetMe,
+  telegramSendMessage,
+} from '../../lib/integrations/telegram'
+import {
   INTEGRATION_DEFAULT,
+  type IntegrationEntry,
   type IntegrationId,
   useIntegrationsStore,
 } from '../../store/useIntegrationsStore'
@@ -39,6 +45,12 @@ interface FieldDef {
   hint?: string
 }
 
+interface VerifyResult {
+  ok: boolean
+  info?: Record<string, string>
+  error?: string
+}
+
 interface IntegrationMeta {
   id: IntegrationId
   name: string
@@ -50,9 +62,11 @@ interface IntegrationMeta {
   categoryLabel: string
   isPlaceholder: boolean
   fields: FieldDef[]
+  verify?: (config: Record<string, string>) => Promise<VerifyResult>
+  ConnectedExtra?: ComponentType<{ entry: IntegrationEntry }>
 }
 
-// ─── Static data ─────────────────────────────────────────────────────────────
+// ─── Constantes ──────────────────────────────────────────────────────────────
 
 const CATEGORY_CHIP: Record<IntegrationCategory, string> = {
   iot: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
@@ -60,6 +74,73 @@ const CATEGORY_CHIP: Record<IntegrationCategory, string> = {
   finanzas: 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400',
   almacenamiento: 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400',
 }
+
+// ─── Telegram ConnectedExtra ──────────────────────────────────────────────────
+
+function TelegramConnectedExtra({ entry }: { entry: IntegrationEntry }) {
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
+
+  const handleTest = async () => {
+    setSending(true)
+    setSent(false)
+    setSendError(null)
+    try {
+      await telegramSendMessage(
+        entry.config.botToken ?? '',
+        entry.config.chatId ?? '',
+        '✅ Canspace conectado correctamente. Las notificaciones del cultivo llegarán aquí.',
+      )
+      setSent(true)
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : 'Error al enviar')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="mt-1 space-y-2">
+      {(entry.info.firstName || entry.info.username) && (
+        <div className="rounded-xl bg-sky-50 px-3 py-2 dark:bg-sky-950/20">
+          <p className="text-xs font-medium text-sky-700 dark:text-sky-400">
+            Bot: <span className="font-semibold">{entry.info.firstName}</span>
+            {entry.info.username ? (
+              <span className="font-normal opacity-70"> · @{entry.info.username}</span>
+            ) : null}
+          </p>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={handleTest}
+        disabled={sending || sent}
+        className={cn(
+          'flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition',
+          sent
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/25 dark:text-emerald-400'
+            : 'border-sky-200 text-sky-700 hover:bg-sky-50 dark:border-sky-800/40 dark:text-sky-400 dark:hover:bg-sky-950/20',
+          sending && 'opacity-60 cursor-not-allowed',
+        )}
+      >
+        {sending ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+        ) : (
+          <Send className="h-3.5 w-3.5" strokeWidth={2} />
+        )}
+        {sending ? 'Enviando...' : sent ? '✓ Mensaje enviado' : 'Enviar mensaje de prueba'}
+      </button>
+
+      {sendError && (
+        <p className="text-[11px] text-red-600 dark:text-red-400">{sendError}</p>
+      )}
+    </div>
+  )
+}
+
+// ─── INTEGRATIONS data ────────────────────────────────────────────────────────
 
 const INTEGRATIONS: IntegrationMeta[] = [
   {
@@ -89,6 +170,22 @@ const INTEGRATIONS: IntegrationMeta[] = [
         hint: 'ID del chat o canal donde llegarán las notificaciones.',
       },
     ],
+    verify: async (config) => {
+      try {
+        const bot = await telegramGetMe(config.botToken ?? '')
+        return {
+          ok: true,
+          info: {
+            firstName: bot.first_name,
+            username: bot.username ?? '',
+            botId: String(bot.id),
+          },
+        }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : 'Token inválido' }
+      }
+    },
+    ConnectedExtra: TelegramConnectedExtra,
   },
   {
     id: 'homeAssistant',
@@ -117,6 +214,7 @@ const INTEGRATIONS: IntegrationMeta[] = [
         hint: 'Generalo en Perfil → Tokens de acceso de larga duración en tu HA.',
       },
     ],
+    verify: async (_config) => ({ ok: true }),
   },
   {
     id: 'googleSheets',
@@ -151,6 +249,7 @@ const INTEGRATIONS: IntegrationMeta[] = [
         hint: 'El ID está en la URL de tu Google Sheet.',
       },
     ],
+    verify: async (_config) => ({ ok: true }),
   },
   {
     id: 'googleDrive',
@@ -185,6 +284,7 @@ const INTEGRATIONS: IntegrationMeta[] = [
         hint: 'ID de la carpeta de destino, visible en la URL de Drive.',
       },
     ],
+    verify: async (_config) => ({ ok: true }),
   },
   {
     id: 'whatsapp',
@@ -298,52 +398,60 @@ function FieldInput({
 
 // ─── ConfigPanel ──────────────────────────────────────────────────────────────
 
-function ConfigPanel({
-  meta,
-  onClose,
-}: {
-  meta: IntegrationMeta
-  onClose: () => void
-}) {
+function ConfigPanel({ meta, onClose }: { meta: IntegrationMeta; onClose: () => void }) {
   const entry = useIntegrationsStore(
     (s) => s.integrations[meta.id] ?? INTEGRATION_DEFAULT(meta.id),
   )
   const patchConfig = useIntegrationsStore((s) => s.patchConfig)
   const setConnected = useIntegrationsStore((s) => s.setConnected)
+  const setInfo = useIntegrationsStore((s) => s.setInfo)
   const disconnect = useIntegrationsStore((s) => s.disconnect)
 
   const [draft, setDraft] = useState<Record<string, string>>(() => ({ ...entry.config }))
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const Icon = meta.icon
   const allFilled = meta.fields.every((f) => (draft[f.key] ?? '').trim().length > 0)
 
   const handleSave = async () => {
     setSaving(true)
-    patchConfig(meta.id, draft)
-    // Steps 3-5 will replace this timeout with real API verification
-    await new Promise<void>((r) => setTimeout(r, 800))
-    setConnected(meta.id, true)
-    setSaving(false)
+    setError(null)
+    try {
+      if (meta.verify) {
+        const result = await meta.verify(draft)
+        if (!result.ok) {
+          setError(result.error ?? 'Error al verificar la integración')
+          return
+        }
+        patchConfig(meta.id, draft)
+        if (result.info) setInfo(meta.id, result.info)
+      } else {
+        patchConfig(meta.id, draft)
+      }
+      setConnected(meta.id, true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleDisconnect = () => {
     disconnect(meta.id)
     setDraft({})
+    setError(null)
   }
 
+  const { ConnectedExtra } = meta
+
   return (
-    <div
-      className={cn(
-        'flex flex-col rounded-2xl border shadow-sm overflow-hidden',
-        'border-gray-200/70 bg-[#fdfdfd] dark:border-[#2f2f2f] dark:bg-[#222222]',
-      )}
-    >
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-gray-200/70 bg-[#fdfdfd] shadow-sm dark:border-[#2f2f2f] dark:bg-[#222222]">
       {/* Header */}
       <div className="flex items-start gap-3 border-b border-gray-200/70 p-5 dark:border-[#2f2f2f]">
         <span
           className={cn(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white',
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
             meta.iconBg,
           )}
         >
@@ -375,12 +483,7 @@ function ConfigPanel({
       <div className="flex-1 p-5">
         {meta.isPlaceholder ? (
           <div className="flex flex-col items-center py-8 text-center">
-            <span
-              className={cn(
-                'mb-3 flex h-12 w-12 items-center justify-center rounded-2xl',
-                meta.iconBg,
-              )}
-            >
+            <span className={cn('mb-3 flex h-12 w-12 items-center justify-center rounded-2xl', meta.iconBg)}>
               <Icon className="h-6 w-6 text-white" strokeWidth={1.5} />
             </span>
             <p className={cn('text-sm font-semibold', C.heading)}>Próximamente</p>
@@ -393,30 +496,37 @@ function ConfigPanel({
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Integración activa */}
             {entry.connected && (
-              <div className="flex items-start gap-2 rounded-xl bg-emerald-50 p-3 dark:bg-emerald-950/25">
-                <CheckCircle2
-                  className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-                  strokeWidth={2}
-                />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                    Integración activa
-                  </p>
-                  {entry.lastConnectedAt && (
-                    <p className="text-[11px] text-emerald-600/70 dark:text-emerald-500/60">
-                      Conectado el{' '}
-                      {new Date(entry.lastConnectedAt).toLocaleDateString('es-AR', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
+              <div className="rounded-xl bg-emerald-50 p-3 dark:bg-emerald-950/25">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2
+                    className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                    strokeWidth={2}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                      Integración activa
                     </p>
-                  )}
+                    {entry.lastConnectedAt && (
+                      <p className="text-[11px] text-emerald-600/70 dark:text-emerald-500/60">
+                        Conectado el{' '}
+                        {new Date(entry.lastConnectedAt).toLocaleDateString('es-AR', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </p>
+                    )}
+                  </div>
                 </div>
+
+                {/* Contenido extra específico de cada integración */}
+                {ConnectedExtra && <ConnectedExtra entry={entry} />}
               </div>
             )}
 
+            {/* Campos de configuración */}
             {meta.fields.map((field) => (
               <FieldInput
                 key={field.key}
@@ -426,7 +536,18 @@ function ConfigPanel({
               />
             ))}
 
-            {meta.fields.length > 0 && !allFilled && (
+            {/* Error de verificación */}
+            {error && (
+              <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 dark:border-red-900/40 dark:bg-red-950/20">
+                <AlertCircle
+                  className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400"
+                  strokeWidth={2}
+                />
+                <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            )}
+
+            {meta.fields.length > 0 && !allFilled && !error && (
               <p className={cn('text-[11px]', C.subheading)}>
                 Completá todos los campos para conectar.
               </p>
@@ -452,7 +573,7 @@ function ConfigPanel({
                 )}
               >
                 {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />}
-                {saving ? 'Actualizando...' : 'Actualizar'}
+                {saving ? 'Verificando...' : 'Actualizar'}
               </button>
               <button
                 type="button"
@@ -480,7 +601,7 @@ function ConfigPanel({
               ) : (
                 <Plug className="h-4 w-4" strokeWidth={2} />
               )}
-              {saving ? 'Conectando...' : 'Conectar'}
+              {saving ? 'Verificando...' : 'Conectar'}
             </button>
           )}
         </div>
@@ -518,23 +639,13 @@ function IntegrationCard({
       )}
     >
       <div className="flex items-center gap-3">
-        <span
-          className={cn(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-            meta.iconBg,
-          )}
-        >
+        <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', meta.iconBg)}>
           <Icon className="h-5 w-5 text-white" strokeWidth={1.75} />
         </span>
 
         <div className="min-w-0 flex-1">
           <p className={cn('text-sm font-semibold leading-tight', C.heading)}>{meta.name}</p>
-          <span
-            className={cn(
-              'mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium',
-              CATEGORY_CHIP[meta.category],
-            )}
-          >
+          <span className={cn('mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium', CATEGORY_CHIP[meta.category])}>
             {meta.categoryLabel}
           </span>
         </div>
@@ -578,13 +689,7 @@ export function IntegrationsTab() {
     Object.values(s.integrations).filter((e) => e.connected).length,
   )
 
-  const selectedMeta = selected
-    ? (INTEGRATIONS.find((m) => m.id === selected) ?? null)
-    : null
-
-  const handleCardClick = (id: IntegrationId) => {
-    setSelected((prev) => (prev === id ? null : id))
-  }
+  const selectedMeta = selected ? (INTEGRATIONS.find((m) => m.id === selected) ?? null) : null
 
   return (
     <div className="space-y-6">
@@ -606,9 +711,8 @@ export function IntegrationsTab() {
         )}
       </div>
 
-      {/* Grid + Detail panel */}
+      {/* Grid + Panel */}
       <div className="flex items-start gap-5">
-        {/* Card grid */}
         <div
           className={cn(
             'grid gap-3',
@@ -622,12 +726,11 @@ export function IntegrationsTab() {
               key={meta.id}
               meta={meta}
               active={selected === meta.id}
-              onClick={() => handleCardClick(meta.id)}
+              onClick={() => setSelected((prev) => (prev === meta.id ? null : meta.id))}
             />
           ))}
         </div>
 
-        {/* Config panel */}
         <AnimatePresence mode="wait">
           {selectedMeta && (
             <motion.div
@@ -638,10 +741,7 @@ export function IntegrationsTab() {
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               className="w-[320px] shrink-0"
             >
-              <ConfigPanel
-                meta={selectedMeta}
-                onClose={() => setSelected(null)}
-              />
+              <ConfigPanel meta={selectedMeta} onClose={() => setSelected(null)} />
             </motion.div>
           )}
         </AnimatePresence>
