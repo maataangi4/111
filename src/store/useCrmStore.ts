@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import type {
   Employee,
+  EmployeeRole,
   Investment,
   Sale,
   SortDir,
@@ -16,6 +17,11 @@ const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+function genAccessCode(): string {
+  return Math.random().toString(36).slice(2, 6).toUpperCase() +
+    Math.random().toString(36).slice(2, 6).toUpperCase()
+}
 
 function normalizeEmployee(raw: unknown): Employee {
   const x = raw as Partial<Employee>
@@ -37,6 +43,9 @@ function normalizeEmployee(raw: unknown): Employee {
         ? (x.reprocan as AttachedFile)
         : null,
     telegramChatId: typeof x.telegramChatId === 'string' ? x.telegramChatId : undefined,
+    username: typeof x.username === 'string' && x.username ? x.username : String(x.name ?? '').toLowerCase().replace(/\s+/g, '') || 'user',
+    accessCode: typeof x.accessCode === 'string' && x.accessCode ? x.accessCode : genAccessCode(),
+    role: x.role === 'manager' || x.role === 'operator' ? x.role : 'operator',
   }
 }
 
@@ -115,11 +124,14 @@ interface CrmState {
     dni: string
     photo: AttachedFile | null
     reprocan: AttachedFile | null
+    role?: EmployeeRole
   }) => void
   removeEmployee: (id: string) => void
   setEmployeeReprocan: (id: string, file: AttachedFile | null) => void
   setEmployeePhoto: (id: string, file: AttachedFile | null) => void
   setEmployeeTelegramChatId: (id: string, chatId: string | undefined) => void
+  setEmployeeRole: (id: string, role: EmployeeRole) => void
+  regenerateAccessCode: (id: string) => void
 
   addVaultDocument: (doc: Omit<VaultDocument, 'id' | 'uploadedAt'> & { uploadedAt?: string }) => void
   removeVaultDocument: (id: string) => void
@@ -198,6 +210,8 @@ const buildInitial = (): Omit<
   | 'setEmployeeReprocan'
   | 'setEmployeePhoto'
   | 'setEmployeeTelegramChatId'
+  | 'setEmployeeRole'
+  | 'regenerateAccessCode'
   | 'addVaultDocument'
   | 'removeVaultDocument'
 > => ({
@@ -316,18 +330,24 @@ export const useCrmStore = create<CrmState>()(
       setSaleSort: (key, dir) => set({ saleSortKey: key, saleSortDir: dir }),
 
       addEmployee: (row) =>
-        set((s) => ({
-          employees: [
-            ...s.employees,
-            {
-              id: uid(),
-              name: row.name.trim(),
-              dni: row.dni.trim(),
-              photo: row.photo,
-              reprocan: row.reprocan,
-            },
-          ],
-        })),
+        set((s) => {
+          const name = row.name.trim()
+          return {
+            employees: [
+              ...s.employees,
+              {
+                id: uid(),
+                name,
+                dni: row.dni.trim(),
+                photo: row.photo,
+                reprocan: row.reprocan,
+                username: name.toLowerCase().replace(/\s+/g, '') || 'user',
+                accessCode: genAccessCode(),
+                role: row.role ?? 'operator',
+              },
+            ],
+          }
+        }),
       removeEmployee: (id) =>
         set((s) => ({
           employees: s.employees.filter((e) => e.id !== id),
@@ -348,6 +368,18 @@ export const useCrmStore = create<CrmState>()(
         set((s) => ({
           employees: s.employees.map((e) =>
             e.id === id ? { ...e, telegramChatId: chatId } : e,
+          ),
+        })),
+      setEmployeeRole: (id, role) =>
+        set((s) => ({
+          employees: s.employees.map((e) =>
+            e.id === id ? { ...e, role } : e,
+          ),
+        })),
+      regenerateAccessCode: (id) =>
+        set((s) => ({
+          employees: s.employees.map((e) =>
+            e.id === id ? { ...e, accessCode: genAccessCode() } : e,
           ),
         })),
 
