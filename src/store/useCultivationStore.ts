@@ -1199,6 +1199,26 @@ function normalizePlantCardItem(x: Partial<PlantCardItem> & Record<string, unkno
     trackingType:
       x.trackingType === 'planta' || x.trackingType === 'lote' ? x.trackingType : undefined,
     seedType: x.seedType === 'Clon' ? 'Clon' : 'Semilla',
+    seedComplianceType:
+      x.seedType !== 'Clon' && (x.seedComplianceType === 'certificada' || x.seedComplianceType === 'propia')
+        ? x.seedComplianceType
+        : undefined,
+    inaseVarietyId: optStr(x.inaseVarietyId),
+    inaseVarietyName: optStr(x.inaseVarietyName),
+    inaseProviderRncyfs: optStr(x.inaseProviderRncyfs),
+    inaseSecurityStamp: optStr(x.inaseSecurityStamp),
+    inaseHarvestYear:
+      typeof x.inaseHarvestYear === 'number' &&
+      Number.isFinite(x.inaseHarvestYear) &&
+      x.inaseHarvestYear >= 1900 &&
+      x.inaseHarvestYear <= 2100
+        ? Math.round(x.inaseHarvestYear)
+        : undefined,
+    inaseLabelPhotoDataUrl:
+      typeof x.inaseLabelPhotoDataUrl === 'string' &&
+      x.inaseLabelPhotoDataUrl.trim().startsWith('data:image/')
+        ? x.inaseLabelPhotoDataUrl.trim()
+        : undefined,
     geneticsType: parseGeneticsType(x.geneticsType) ?? 'fotoperiodica',
     growMode: x.growMode === 'outdoor' ? 'outdoor' : x.growMode === 'indoor' ? 'indoor' : undefined,
     date: String(x.date ?? ''),

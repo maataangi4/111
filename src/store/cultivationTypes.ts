@@ -500,6 +500,25 @@ export type PlantCardItem = {
   /** Маркировка группы по цвету стяжки (без сканера). */
   colorTagKey?: BraceletColorTagKey
   seedType: 'Semilla' | 'Clon'
+  /**
+   * Semillas: certificada (con INASE) vs propia (sin documentos).
+   * Usado para compliance / auditoría.
+   */
+  seedComplianceType?: 'certificada' | 'propia'
+  /** Semillas certificadas: número / código INASE (obligatorio cuando aplica). */
+  inaseCode?: string
+  /** INASE: variedad (N° INASE) */
+  inaseVarietyId?: string
+  /** INASE: nombre de variedad (para auditoría, sin lookup) */
+  inaseVarietyName?: string
+  /** INASE: N° de RNCyFS del proveedor */
+  inaseProviderRncyfs?: string
+  /** INASE: N° de Estampilla de Seguridad (identidad del envase) */
+  inaseSecurityStamp?: string
+  /** INASE: Año de cosecha (debe coincidir entre estampilla y etiqueta) */
+  inaseHarvestYear?: number
+  /** INASE: foto opcional del rótulo amarillo (data URL). */
+  inaseLabelPhotoDataUrl?: string
   /** Esqueje propio (madre en registro) vs comprado / externo. */
   cloneOrigin?: CloneOriginKind
   /** Proveedor u origen si `cloneOrigin === 'externo'`. */

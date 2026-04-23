@@ -915,6 +915,8 @@ export function PropagacionBatchDetailSlideover({
   }, [applyPatch, draftNutrientLine, draftFertilizerToolId, closeBlockEditor])
 
   const isClone = item.seedType === 'Clon'
+  const isInaseCertifiedSeed =
+    item.seedType === 'Semilla' && item.seedComplianceType === 'certificada'
   const age =
     item.ageDays != null && Number.isFinite(item.ageDays)
       ? Math.max(1, Math.round(item.ageDays))
@@ -2070,6 +2072,73 @@ export function PropagacionBatchDetailSlideover({
                           )}
                         </dd>
                       </div>
+                      {isInaseCertifiedSeed ? (
+                        <div className="border-t border-gray-100 pt-3 dark:border-[#2e2e2e]">
+                          <dt className="text-xs font-semibold uppercase tracking-wide text-amber-900/90 dark:text-amber-200/90">
+                            {t('germinacionDetail.passportInaseTitle')}
+                          </dt>
+                          <dd className="mt-2 space-y-3 text-gray-700 dark:text-[#d4d4d4]">
+                            <div>
+                              <p className="text-[11px] font-medium text-gray-500 dark:text-[#a3a3a3]">
+                                {t('cultivoBoard.inaseVarietyLabel')}
+                              </p>
+                              <p className="mt-0.5 font-medium text-gray-900 dark:text-[#f1f1f1]">
+                                {[
+                                  item.inaseVarietyId?.trim(),
+                                  (item.inaseVarietyName ?? item.strain)?.trim(),
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ') || '—'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-medium text-gray-500 dark:text-[#a3a3a3]">
+                                {t('cultivoBoard.inaseProviderRncyfsLabel')}
+                              </p>
+                              <p className="mt-0.5 font-medium text-gray-900 dark:text-[#f1f1f1]">
+                                {item.inaseProviderRncyfs?.trim() || '—'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-medium text-gray-500 dark:text-[#a3a3a3]">
+                                {t('cultivoBoard.inaseSecurityStampLabel')}
+                              </p>
+                              <p className="mt-0.5 font-medium text-gray-900 dark:text-[#f1f1f1]">
+                                {item.inaseSecurityStamp?.trim() || '—'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-medium text-gray-500 dark:text-[#a3a3a3]">
+                                {t('cultivoBoard.inaseHarvestYearLabel')}
+                              </p>
+                              <p className="mt-0.5 font-medium text-gray-900 dark:text-[#f1f1f1]">
+                                {item.inaseHarvestYear != null && Number.isFinite(item.inaseHarvestYear)
+                                  ? String(item.inaseHarvestYear)
+                                  : '—'}
+                              </p>
+                            </div>
+                            {item.inaseLabelPhotoDataUrl?.trim() ? (
+                              <div>
+                                <p className="text-[11px] font-medium text-gray-500 dark:text-[#a3a3a3]">
+                                  {t('germinacionDetail.passportInaseLabelPhoto')}
+                                </p>
+                                <a
+                                  href={item.inaseLabelPhotoDataUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-2 inline-block max-w-full"
+                                >
+                                  <img
+                                    src={item.inaseLabelPhotoDataUrl}
+                                    alt=""
+                                    className="max-h-56 w-full max-w-sm rounded-xl border border-gray-200 object-contain dark:border-[#3d3d3d]"
+                                  />
+                                </a>
+                              </div>
+                            ) : null}
+                          </dd>
+                        </div>
+                      ) : null}
                       {isClone ? (
                         <>
                           <div>

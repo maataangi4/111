@@ -175,7 +175,7 @@ export function SoftSelect<T extends string>({
                       )
                     : cn(
                         'border border-gray-200/70 bg-white/72 shadow-[0_16px_48px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.05]',
-                        'dark:border-white/[0.08] dark:shadow-[0_20px_50px_rgba(0,0,0,0.55)] dark:ring-white/[0.06]',
+                        'dark:border-white/[0.08] dark:bg-[#1c1c1c]/78 dark:shadow-[0_20px_50px_rgba(0,0,0,0.55)] dark:ring-white/[0.06]',
                       ),
                 )}
                 style={{
@@ -189,7 +189,7 @@ export function SoftSelect<T extends string>({
                   transformOrigin: 'top center',
                 }}
               >
-                <div className="max-h-[inherit] overflow-y-auto overscroll-contain p-1">
+                <div className="scrollbar-modern scrollbar-modern-dark max-h-[inherit] overflow-y-auto overscroll-contain p-1">
                   {options.map((opt, i) => {
                     const selected = opt.value === value
                     const optKey = `${String(opt.value)}-${i}-${opt.label.slice(0, 24)}`

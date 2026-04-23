@@ -147,6 +147,8 @@ export function SettingsGeneralPanel() {
             onChange={setTimezone}
             optionIds={sortedTimeZoneIds}
             aria-label={t('settings.tzLabel')}
+            searchPlaceholder={t('settings.tzSearchPlaceholder')}
+            searchEmptyLabel={t('settings.tzSearchEmpty')}
           />
         </div>
 

@@ -1,9 +1,9 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '../../lib/cn'
-import { formatTimeZoneSelectLabel } from '../../lib/timeZones'
+import { filterTimeZoneIdsBySearchQuery, formatTimeZoneSelectLabel } from '../../lib/timeZones'
 
 const MENU_Z = 10050
 const CHEVRON_GAP_PX = 36
@@ -14,6 +14,8 @@ type TimeZoneSelectProps = {
   optionIds: readonly string[]
   'aria-label': string
   id?: string
+  searchPlaceholder: string
+  searchEmptyLabel: string
 }
 
 export function TimeZoneSelect({
@@ -22,12 +24,20 @@ export function TimeZoneSelect({
   optionIds,
   'aria-label': ariaLabel,
   id,
+  searchPlaceholder,
+  searchEmptyLabel,
 }: TimeZoneSelectProps) {
   const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [highlightedIndex, setHighlightedIndex] = useState(0)
   const reduceMotion = useReducedMotion()
   const triggerRef = useRef<HTMLButtonElement>(null)
   const measureRef = useRef<HTMLSpanElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const activeOptionRef = useRef<HTMLButtonElement | null>(null)
+  const wasOpenRef = useRef(false)
+  const listboxId = useId()
   const [triggerWidth, setTriggerWidth] = useState(200)
   const [menuGeom, setMenuGeom] = useState<{
     top: number
@@ -35,6 +45,11 @@ export function TimeZoneSelect({
     width: number
     maxHeight: number
   } | null>(null)
+
+  const filteredOptionIds = useMemo(
+    () => filterTimeZoneIdsBySearchQuery(optionIds, query),
+    [optionIds, query],
+  )
 
   useLayoutEffect(() => {
     const el = measureRef.current
@@ -61,12 +76,12 @@ export function TimeZoneSelect({
     const vh = window.innerHeight
     const vw = window.innerWidth
     const space = vh - r.bottom - 12
-    const listW = Math.min(vw - 24, Math.max(r.width, triggerWidth))
+    const listW = Math.min(vw - 24, Math.max(r.width, triggerWidth, 280))
     setMenuGeom({
       top: r.bottom + 6,
       left: Math.min(r.left, vw - listW - 12),
       width: listW,
-      maxHeight: Math.min(320, Math.max(120, space)),
+      maxHeight: Math.min(360, Math.max(160, space)),
     })
   }, [triggerWidth])
 
@@ -83,6 +98,31 @@ export function TimeZoneSelect({
   }, [open, updatePosition])
 
   useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      setQuery('')
+      const idx = optionIds.indexOf(value)
+      setHighlightedIndex(idx >= 0 ? idx : 0)
+      requestAnimationFrame(() => inputRef.current?.focus())
+    }
+    if (!open && wasOpenRef.current) {
+      setQuery('')
+    }
+    wasOpenRef.current = open
+  }, [open, optionIds, value])
+
+  useLayoutEffect(() => {
+    if (!open) return
+    activeOptionRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [open, highlightedIndex, filteredOptionIds.length])
+
+  useEffect(() => {
+    setHighlightedIndex((hi) => {
+      const max = Math.max(0, filteredOptionIds.length - 1)
+      return Math.min(hi, max)
+    })
+  }, [filteredOptionIds.length])
+
+  useEffect(() => {
     if (!open) return
     const onDoc = (e: PointerEvent) => {
       const node = e.target as Node
@@ -91,7 +131,35 @@ export function TimeZoneSelect({
       close()
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close()
+      if (e.key === 'Escape') {
+        close()
+        return
+      }
+      const inMenu =
+        menuRef.current?.contains(document.activeElement as Node) ||
+        document.activeElement === inputRef.current
+      if (!inMenu) return
+      const len = filteredOptionIds.length
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        if (len === 0) return
+        setHighlightedIndex((i) => Math.min(i + 1, len - 1))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        if (len === 0) return
+        setHighlightedIndex((i) => Math.max(i - 1, 0))
+        return
+      }
+      if (e.key === 'Enter' && !e.repeat) {
+        const pick = filteredOptionIds[highlightedIndex]
+        if (pick) {
+          e.preventDefault()
+          onChange(pick)
+          close()
+        }
+      }
     }
     document.addEventListener('pointerdown', onDoc, true)
     document.addEventListener('keydown', onKey)
@@ -99,13 +167,16 @@ export function TimeZoneSelect({
       document.removeEventListener('pointerdown', onDoc, true)
       document.removeEventListener('keydown', onKey)
     }
-  }, [open, close])
+  }, [open, close, filteredOptionIds, highlightedIndex, onChange])
 
   const menuTransition = reduceMotion
     ? { duration: 0 }
     : { duration: 0.24, ease: [0.22, 1, 0.36, 1] as const }
 
   const chipText = formatTimeZoneSelectLabel(value)
+
+  const activeDescendantId =
+    open && filteredOptionIds.length > 0 ? `${listboxId}-opt-${highlightedIndex}` : undefined
 
   const menu =
     typeof document !== 'undefined'
@@ -119,7 +190,7 @@ export function TimeZoneSelect({
               <motion.div
                 key="tz-select-menu"
                 ref={menuRef}
-                role="listbox"
+                role="presentation"
                 initial={reduceMotion ? false : { opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: reduceMotion ? 0 : 10 }}
@@ -138,31 +209,71 @@ export function TimeZoneSelect({
                   transformOrigin: 'top center',
                 }}
               >
-                <div className="max-h-[inherit] overflow-y-auto overscroll-contain p-1 scrollbar-modern-dark">
-                  {optionIds.map((tzId, i) => {
-                    const selected = tzId === value
-                    const label = formatTimeZoneSelectLabel(tzId)
-                    return (
-                      <button
-                        key={`${tzId}-${i}`}
-                        type="button"
-                        role="option"
-                        aria-selected={selected}
-                        className={cn(
-                          'flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition-colors',
-                          selected
-                            ? 'bg-white/[0.1] font-medium text-white'
-                            : 'text-[#c4c4c4] hover:bg-white/[0.06] hover:text-[#f1f1f1]',
-                        )}
-                        onClick={() => {
-                          onChange(tzId)
-                          close()
-                        }}
-                      >
-                        {label}
-                      </button>
-                    )
-                  })}
+                <div className="border-b border-white/[0.06] px-2 pb-2 pt-1.5">
+                  <input
+                    ref={inputRef}
+                    type="search"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={query}
+                    onChange={(e) => {
+                      setQuery(e.target.value)
+                      setHighlightedIndex(0)
+                    }}
+                    placeholder={searchPlaceholder}
+                    aria-label={searchPlaceholder}
+                    aria-controls={listboxId}
+                    aria-activedescendant={activeDescendantId}
+                    role="combobox"
+                    aria-expanded
+                    className={cn(
+                      'w-full rounded-xl border border-white/[0.08] bg-[#1f1f1f] px-3 py-2 text-sm',
+                      'text-[#f1f1f1] outline-none placeholder:text-[#7a7a7a]',
+                      'focus-visible:border-emerald-500/40 focus-visible:ring-2 focus-visible:ring-emerald-500/25',
+                    )}
+                  />
+                </div>
+                <div
+                  id={listboxId}
+                  role="listbox"
+                  aria-label={ariaLabel}
+                  className="max-h-[min(280px,calc(100%-3.5rem))] overflow-y-auto overscroll-contain p-1 scrollbar-modern-dark"
+                >
+                  {filteredOptionIds.length === 0 ? (
+                    <p className="px-3 py-6 text-center text-sm text-[#8c8c8c]">{searchEmptyLabel}</p>
+                  ) : (
+                    filteredOptionIds.map((tzId, i) => {
+                      const selected = tzId === value
+                      const highlighted = i === highlightedIndex
+                      const label = formatTimeZoneSelectLabel(tzId)
+                      const optId = `${listboxId}-opt-${i}`
+                      return (
+                        <button
+                          key={tzId}
+                          id={optId}
+                          ref={highlighted ? activeOptionRef : undefined}
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          className={cn(
+                            'flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition-colors',
+                            selected
+                              ? 'bg-white/[0.1] font-medium text-white'
+                              : 'text-[#c4c4c4] hover:bg-white/[0.06] hover:text-[#f1f1f1]',
+                            highlighted && !selected && 'bg-white/[0.05]',
+                          )}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onMouseEnter={() => setHighlightedIndex(i)}
+                          onClick={() => {
+                            onChange(tzId)
+                            close()
+                          }}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })
+                  )}
                 </div>
               </motion.div>
             ) : null}
@@ -199,6 +310,7 @@ export function TimeZoneSelect({
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-haspopup="listbox"
+        aria-controls={open ? listboxId : undefined}
       >
         <span className="min-w-0 flex-1 truncate">{chipText}</span>
         <motion.span

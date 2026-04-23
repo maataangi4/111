@@ -109,6 +109,22 @@ export function formatTimeZoneSelectLabel(timeZone: string, date = new Date()): 
   return `${offset} · ${readable}`
 }
 
+/** Filtra IDs IANA por texto libre (ciudad / región / offset en la etiqueta). */
+export function filterTimeZoneIdsBySearchQuery(
+  ids: readonly string[],
+  query: string,
+  date = new Date(),
+): string[] {
+  const raw = query.trim().toLowerCase()
+  if (!raw) return [...ids]
+  return ids.filter((id) => {
+    const lower = id.toLowerCase()
+    if (lower.includes(raw)) return true
+    if (lower.replace(/_/g, ' ').includes(raw)) return true
+    return formatTimeZoneSelectLabel(id, date).toLowerCase().includes(raw)
+  })
+}
+
 export function sortTimeZoneIdsByUtcOffset(ids: string[], date = new Date()): string[] {
   return [...ids].sort((a, b) => {
     const da = getTimeZoneOffsetMinutes(a, date)

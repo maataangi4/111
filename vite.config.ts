@@ -25,5 +25,8 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_GEMINI_MODEL': JSON.stringify(viteEnv.VITE_GEMINI_MODEL ?? ''),
     },
     plugins: [react(), tailwindcss()],
+    server: {
+      allowedHosts: true,
+    },
   }
 })
