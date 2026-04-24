@@ -52,6 +52,8 @@ export interface AttachedFile {
   dataUrl: string
 }
 
+export type EmployeeRole = 'manager' | 'operator'
+
 export interface Employee {
   id: string
   name: string
@@ -59,6 +61,9 @@ export interface Employee {
   photo: AttachedFile | null
   reprocan: AttachedFile | null
   telegramChatId?: string
+  username: string
+  accessCode: string
+  role: EmployeeRole
 }
 
 export interface VaultDocument {
