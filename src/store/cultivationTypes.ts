@@ -517,6 +517,8 @@ export type PlantCardItem = {
   inaseSecurityStamp?: string
   /** INASE: Año de cosecha (debe coincidir entre estampilla y etiqueta) */
   inaseHarvestYear?: number
+  /** INASE certificada: etiqueta legal de lote (p. ej. «LOTE CHEM FELIX-2024-433532-001»). */
+  inaseLegalLotLabel?: string
   /** INASE: foto opcional del rótulo amarillo (data URL). */
   inaseLabelPhotoDataUrl?: string
   /** Esqueje propio (madre en registro) vs comprado / externo. */

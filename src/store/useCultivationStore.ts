@@ -1223,6 +1223,7 @@ function normalizePlantCardItem(x: Partial<PlantCardItem> & Record<string, unkno
       x.inaseHarvestYear <= 2100
         ? Math.round(x.inaseHarvestYear)
         : undefined,
+    inaseLegalLotLabel: optStr(x.inaseLegalLotLabel),
     inaseLabelPhotoDataUrl:
       typeof x.inaseLabelPhotoDataUrl === 'string' &&
       x.inaseLabelPhotoDataUrl.trim().startsWith('data:image/')
