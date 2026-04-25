@@ -25,14 +25,6 @@ const TRACKING_TAB_ACTIVE: Record<TransplantTrackingMode, string> = {
     'bg-white text-purple-700 shadow-[0_4px_12px_-2px_rgba(168,85,247,0.2)] dark:bg-[#2a2a2a] dark:text-purple-300 dark:shadow-[0_4px_12px_-2px_rgba(168,85,247,0.12)]',
 }
 
-/** Устарело: ID теперь только из сканирования. Оставлено для совместимости при необходимости. */
-export function buildVegetacionBraceletIds(batchId: string, count: number): string[] {
-  const slug = batchId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'BATCH'
-  return Array.from(
-    { length: count },
-    (_, i) => `${slug}-V-${String(i + 1).padStart(3, '0')}`,
-  )
-}
 
 function normalizeBraceletKey(raw: string): string {
   return raw.trim().replace(/^#/, '').toLowerCase()
@@ -121,8 +113,6 @@ export function TransplantModal({
   onClose,
   onConfirm,
   companyId,
-  topologySelection: _topologySelection,
-  onTopologyChange: _onTopologyChange,
 }: TransplantModalProps) {
   const { t } = useTranslation()
   const topologyLocLabels = useMemo(

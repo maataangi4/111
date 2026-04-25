@@ -66,6 +66,8 @@ export interface Employee {
   role: EmployeeRole
 }
 
+export type VaultDocCategory = 'plantillas' | 'socios' | 'cultivo' | 'legal'
+
 export interface VaultDocument {
   id: string
   title: string
@@ -73,4 +75,5 @@ export interface VaultDocument {
   mime: string
   dataUrl: string
   uploadedAt: string
+  category?: VaultDocCategory
 }

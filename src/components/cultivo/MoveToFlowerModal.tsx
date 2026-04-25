@@ -14,7 +14,7 @@ import { useLocationTopologyStore } from '../../store/useLocationTopologyStore'
 import type { PlantCardItem } from './PlantCard'
 import { cn } from '../../lib/cn'
 import { SoftSelect } from '../ui/SoftSelect'
-import { resolveCultivoPeerGroup } from '../../lib/cultivo/resolveCultivoPeerGroup'
+
 
 export type MoveToFlowerConfirmPayload = {
   selectedIds: string[]
@@ -39,7 +39,6 @@ function plantMatchKey(p: PlantCardItem): string {
   return normalizeBraceletKey(p.id)
 }
 
-export const resolveVegPeerGroup = resolveCultivoPeerGroup
 
 function todayIsoDate(): string {
   const d = new Date()

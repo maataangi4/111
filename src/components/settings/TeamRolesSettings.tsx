@@ -20,6 +20,9 @@ export function TeamRolesSettings() {
   const setEmployeeTelegramChatId = useCrmStore((s) => s.setEmployeeTelegramChatId)
   const setEmployeeRole = useCrmStore((s) => s.setEmployeeRole)
   const regenerateAccessCode = useCrmStore((s) => s.regenerateAccessCode)
+  const telegramEntry = useIntegrationsStore((s) => s.integrations.telegram)
+  const botUsername = telegramEntry?.info?.username ?? ''
+  const botConnected = telegramEntry?.connected ?? false
 
   const [showForm, setShowForm] = useState(false)
   const [nameInput, setNameInput] = useState('')
@@ -257,34 +260,97 @@ export function TeamRolesSettings() {
                 {linkingId === emp.id && (
                   <tr className={cn('border-b border-gray-100 dark:border-[#2e2e2e]', C.tableRow)}>
                     <td colSpan={5} className="px-5 py-3">
-                      <div className={cn('rounded-xl border p-3', C.cardMuted)}>
-                        <p className={cn('mb-2 text-sm font-semibold', C.heading)}>Vincular Telegram de {emp.name}</p>
-                        <ol className={cn('mb-2 space-y-0.5 text-xs', C.muted)}>
-                          <li>1. Abrí <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer"
-                            className="font-semibold text-sky-500 underline underline-offset-2">@userinfobot</a> en Telegram</li>
-                          <li>2. Mandá <span className="font-mono font-semibold">/start</span> → copiá el número que responde</li>
-                        </ol>
+                      <div className={cn('rounded-xl border p-4', C.cardMuted)}>
+                        <p className={cn('mb-3 text-sm font-semibold', C.heading)}>
+                          Vincular Telegram de {emp.name}
+                        </p>
+
+                        {!botConnected ? (
+                          <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                            ⚠️ El bot de Telegram no está configurado. Configuralo primero en{' '}
+                            <span className="font-semibold">Integraciones → Telegram Bot</span>.
+                          </p>
+                        ) : (
+                          <ol className={cn('mb-3 space-y-1.5 text-xs', C.muted)}>
+                            <li className="flex items-start gap-1.5">
+                              <span className="mt-0.5 font-bold text-sky-500">1.</span>
+                              <span>
+                                {emp.name} debe abrir Telegram y buscar{' '}
+                                {botUsername ? (
+                                  <a
+                                    href={`https://t.me/${botUsername}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="font-semibold text-sky-500 underline underline-offset-2"
+                                  >
+                                    @{botUsername}
+                                  </a>
+                                ) : (
+                                  <span className="font-semibold">el bot configurado</span>
+                                )}{' '}
+                                y mandar <span className="font-mono font-semibold">/start</span>.{' '}
+                                <span className="text-amber-600 dark:text-amber-400 font-medium">
+                                  (Obligatorio — sin esto el bot no puede escribirle)
+                                </span>
+                              </span>
+                            </li>
+                            <li className="flex items-start gap-1.5">
+                              <span className="mt-0.5 font-bold text-sky-500">2.</span>
+                              <span>
+                                Abrir{' '}
+                                <a
+                                  href="https://t.me/userinfobot"
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-semibold text-sky-500 underline underline-offset-2"
+                                >
+                                  @userinfobot
+                                </a>{' '}
+                                y mandar <span className="font-mono font-semibold">/start</span> — copiar el número (Chat ID) que responde.
+                              </span>
+                            </li>
+                            <li className="flex items-start gap-1.5">
+                              <span className="mt-0.5 font-bold text-sky-500">3.</span>
+                              <span>Pegá ese número acá abajo y hacé click en Guardar.</span>
+                            </li>
+                          </ol>
+                        )}
+
                         <div className="flex flex-wrap gap-2">
-                          <input autoFocus
-                            className={cn('h-8 w-40 rounded-lg border px-2.5 text-xs', C.input)}
+                          <input
+                            autoFocus
+                            className={cn('h-8 w-44 rounded-lg border px-2.5 text-xs', C.input)}
                             placeholder="Ej: 1504808624"
                             value={chatIdInput}
                             onChange={(e) => setChatIdInput(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') void saveLink(emp.id, emp.name) }}
                           />
-                          <motion.button type="button" whileTap={{ scale: 0.97 }}
-                            disabled={!chatIdInput.trim()}
+                          <motion.button
+                            type="button"
+                            whileTap={{ scale: 0.97 }}
+                            disabled={!chatIdInput.trim() || !botConnected}
                             onClick={() => void saveLink(emp.id, emp.name)}
-                            className={cn('h-8 rounded-lg px-3 text-xs font-medium', C.btnPrimary)}>
-                            Guardar
+                            className={cn('h-8 rounded-lg px-3 text-xs font-medium', C.btnPrimary)}
+                          >
+                            Guardar y verificar
                           </motion.button>
-                          <motion.button type="button" whileTap={{ scale: 0.97 }}
+                          <motion.button
+                            type="button"
+                            whileTap={{ scale: 0.97 }}
                             onClick={() => { setLinkingId(null); setChatIdInput(''); setLinkError('') }}
-                            className={cn('h-8 rounded-lg px-3 text-xs font-medium', C.btnSecondary)}>
+                            className={cn('h-8 rounded-lg px-3 text-xs font-medium', C.btnSecondary)}
+                          >
                             Cancelar
                           </motion.button>
                         </div>
-                        {linkError && <p className="mt-1.5 text-xs text-red-500">{linkError}</p>}
+                        {linkError && (
+                          <p className="mt-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-600 dark:bg-red-950/30 dark:text-red-400">
+                            ❌ {linkError}
+                          </p>
+                        )}
+                        <p className={cn('mt-2 text-[11px]', C.muted)}>
+                          Al guardar se envía un mensaje de prueba. Si falla, revisá que el empleado haya hecho el paso 1.
+                        </p>
                       </div>
                     </td>
                   </tr>

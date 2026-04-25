@@ -115,11 +115,11 @@ function normalizeSocio(raw: unknown): Socio {
       grams: Math.max(0, Number((r as DispenseRecord).grams ?? 0) || 0),
       harvestBatchId: String((r as DispenseRecord).harvestBatchId ?? ''),
     })),
-    payments: payments.map((p) => ({
-      id: String((p as any).id ?? uid()),
-      date: String((p as any).date ?? new Date().toISOString()),
-      amountArs: Math.max(0, Number((p as any).amountArs ?? 0) || 0),
-      note: typeof (p as any).note === 'string' ? (p as any).note : undefined,
+    payments: payments.map((p: Record<string, unknown>) => ({
+      id: String(p.id ?? uid()),
+      date: String(p.date ?? new Date().toISOString()),
+      amountArs: Math.max(0, Number(p.amountArs ?? 0) || 0),
+      note: typeof p.note === 'string' ? p.note : undefined,
     })),
     docs:
       x.docs && typeof x.docs === 'object'
@@ -366,20 +366,20 @@ export const useSociosStore = create<SociosState>()(
         const p = persisted as Partial<SociosState> | undefined
         const c = current as SociosState
         if (!p || typeof p !== 'object') return c
-        const rawSocios = Array.isArray((p as any).socios) ? (p as any).socios : c.socios
-        const rawNotifs = Array.isArray((p as any).notifications) ? (p as any).notifications : []
-        const rawMovs = Array.isArray((p as any).movimientos) ? (p as any).movimientos : []
+        const rawSocios = Array.isArray(p.socios) ? p.socios : c.socios
+        const rawNotifs = Array.isArray(p.notifications) ? p.notifications : []
+        const rawMovs = Array.isArray(p.movimientos) ? p.movimientos : []
         const notifications = rawNotifs
-          .map((n: any) => ({
+          .map((n: Record<string, unknown>) => ({
             id: String(n?.id ?? uid()),
             createdAt: String(n?.createdAt ?? new Date().toISOString()),
             title: String(n?.title ?? 'Notificación'),
             body: String(n?.body ?? ''),
-            tone: n?.tone === 'amber' || n?.tone === 'rose' || n?.tone === 'emerald' ? n.tone : undefined,
+            tone: (n.tone === 'amber' || n.tone === 'rose' || n.tone === 'emerald' ? n.tone : undefined) as 'amber' | 'rose' | 'emerald' | undefined,
           }))
           .slice(0, 24)
         const movimientos: MovimientoEntry[] = rawMovs
-          .map((m: any) => ({
+          .map((m: Record<string, unknown>) => ({
             id: String(m?.id ?? uid()),
             createdAt: String(m?.createdAt ?? new Date().toISOString()),
             socioId: String(m?.socioId ?? ''),
@@ -389,19 +389,18 @@ export const useSociosStore = create<SociosState>()(
             harvestBatchLabel: String(m?.harvestBatchLabel ?? m?.harvestBatchId ?? ''),
             grams: Number(m?.grams ?? 0) || 0,
             aporteArs: Number(m?.aporteArs ?? 0) || 0,
-            metodoPago:
-              m?.metodoPago === 'Transferencia' || m?.metodoPago === 'Mercado Pago' || m?.metodoPago === 'Otro'
-                ? m.metodoPago
-                : 'Efectivo',
-            tipo: m?.tipo === 'interno' ? 'interno' : 'legal',
-            status: m?.status === 'anulado' || m?.status === 'reversion' ? m.status : 'ok',
-            relatedMovimientoId: typeof m?.relatedMovimientoId === 'string' ? m.relatedMovimientoId : undefined,
+            metodoPago: (m.metodoPago === 'Transferencia' || m.metodoPago === 'Mercado Pago' || m.metodoPago === 'Otro'
+              ? m.metodoPago
+              : 'Efectivo') as MovimientoMetodoPago,
+            tipo: (m.tipo === 'interno' ? 'interno' : 'legal') as 'interno' | 'legal',
+            status: (m.status === 'anulado' || m.status === 'reversion' ? m.status : 'ok') as 'ok' | 'anulado' | 'reversion',
+            relatedMovimientoId: typeof m.relatedMovimientoId === 'string' ? m.relatedMovimientoId : undefined,
             anulacion:
-              m?.anulacion && typeof m.anulacion === 'object'
+              m.anulacion && typeof m.anulacion === 'object'
                 ? {
-                    at: String(m.anulacion.at ?? new Date().toISOString()),
-                    by: String(m.anulacion.by ?? 'Admin'),
-                    motivo: String(m.anulacion.motivo ?? ''),
+                    at: String((m.anulacion as Record<string, unknown>).at ?? new Date().toISOString()),
+                    by: String((m.anulacion as Record<string, unknown>).by ?? 'Admin'),
+                    motivo: String((m.anulacion as Record<string, unknown>).motivo ?? ''),
                   }
                 : undefined,
           }))

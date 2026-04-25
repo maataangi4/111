@@ -110,6 +110,10 @@ function TelegramConnectedExtra({ entry }: { entry: IntegrationEntry }) {
               <span className="font-normal opacity-70"> · @{entry.info.username}</span>
             ) : null}
           </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-sky-600/80 dark:text-sky-500/70">
+            Las alertas van al grupo (chatId arriba) y también directo a cada empleado si vinculás su Telegram en{' '}
+            <span className="font-semibold">Configuración → Equipo</span>.
+          </p>
         </div>
       )}
 
@@ -164,10 +168,10 @@ const INTEGRATIONS: IntegrationMeta[] = [
       },
       {
         key: 'chatId',
-        label: 'Chat ID',
+        label: 'Chat ID del grupo',
         placeholder: '-1001234567890',
         type: 'text',
-        hint: 'ID del chat o canal donde llegarán las notificaciones.',
+        hint: 'Creá un grupo en Telegram, añadí el bot como administrador y escribí /start en el grupo. Luego agregá @RawDataBot al grupo — te mandará el chat_id (número negativo, ej: -1001234567890). Sacá a @RawDataBot después.',
       },
     ],
     verify: async (config) => {
@@ -214,7 +218,7 @@ const INTEGRATIONS: IntegrationMeta[] = [
         hint: 'Generalo en Perfil → Tokens de acceso de larga duración en tu HA.',
       },
     ],
-    verify: async (_config) => ({ ok: true }),
+    verify: async () => ({ ok: true }),
   },
   {
     id: 'googleSheets',
@@ -249,7 +253,7 @@ const INTEGRATIONS: IntegrationMeta[] = [
         hint: 'El ID está en la URL de tu Google Sheet.',
       },
     ],
-    verify: async (_config) => ({ ok: true }),
+    verify: async () => ({ ok: true }),
   },
   {
     id: 'googleDrive',
@@ -284,7 +288,7 @@ const INTEGRATIONS: IntegrationMeta[] = [
         hint: 'ID de la carpeta de destino, visible en la URL de Drive.',
       },
     ],
-    verify: async (_config) => ({ ok: true }),
+    verify: async () => ({ ok: true }),
   },
   {
     id: 'whatsapp',

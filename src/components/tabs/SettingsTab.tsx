@@ -1,5 +1,5 @@
 import { LayoutGroup, motion } from 'framer-motion'
-import { Building2, CreditCard, SlidersHorizontal, User } from 'lucide-react'
+import { Building2, CreditCard, SlidersHorizontal, User, Users } from 'lucide-react'
 import { C } from '../../lib/crmUi'
 import { cn } from '../../lib/cn'
 import type { SettingsNavSection } from '../../lib/settingsNavSection'
@@ -34,6 +34,11 @@ export function SettingsTab({ activeSection, onSectionChange }: SettingsTabProps
       id: 'company' as const,
       label: t('nav.settingsSubCompany'),
       icon: Building2,
+    },
+    {
+      id: 'team' as const,
+      label: t('nav.settingsSubTeam'),
+      icon: Users,
     },
     {
       id: 'subscription' as const,
@@ -139,6 +144,16 @@ export function SettingsTab({ activeSection, onSectionChange }: SettingsTabProps
                       confirmDeleteRoom: t('settings.topologyConfirmDeleteRoom'),
                     }}
                   />
+                </section>
+              </div>
+            ) : null}
+
+            {activeSection === 'team' ? (
+              <div key="panel-team">
+                <section aria-labelledby="settings-heading-team">
+                  <h3 id="settings-heading-team" className="sr-only">
+                    {t('nav.settingsSubTeam')}
+                  </h3>
                   <TeamRolesSettings />
                 </section>
               </div>

@@ -9,8 +9,11 @@ import type {
   SortKey,
   StockItem,
   VaultDocument,
+  VaultDocCategory,
   AttachedFile,
 } from './types'
+
+export type { VaultDocCategory }
 import { SEED_GENETICS_IDS } from './cultivationTypes'
 
 const uid = () =>

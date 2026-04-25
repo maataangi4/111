@@ -21,11 +21,8 @@ import { EditCultivoItemModal } from '../cultivo/EditCultivoItemModal'
 import { MotherPlantSearchSelect } from '../cultivo/MotherPlantSearchSelect'
 import { HarvestModal } from '../cultivo/HarvestModal'
 import { LocationSelector } from '../location/LocationSelector'
-import {
-  MoveToFlowerModal,
-  resolveVegPeerGroup,
-  type MoveToFlowerConfirmPayload,
-} from '../cultivo/MoveToFlowerModal'
+import { MoveToFlowerModal, type MoveToFlowerConfirmPayload } from '../cultivo/MoveToFlowerModal'
+import { resolveCultivoPeerGroup as resolveVegPeerGroup } from '../../lib/cultivo/resolveCultivoPeerGroup'
 import { DividirLoteModal } from '../cultivo/DividirLoteModal'
 import { TransplantModal, type TransplantModalConfirmPayload } from '../cultivo/TransplantModal'
 import { StrainAutocomplete } from '../ui/StrainAutocomplete'
@@ -1514,8 +1511,7 @@ export function CultivoTab() {
                               | 'certificada'
                               | 'propia'
                             setCreateSeedComplianceType(next)
-                            if (next === 'certificada') {
-                            } else {
+                            if (next !== 'certificada') {
                               setCreateInaseVarietyId('')
                               setCreateInaseProviderRncyfs('')
                               setCreateInaseSecurityStamp('')

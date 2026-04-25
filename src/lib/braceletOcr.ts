@@ -507,7 +507,7 @@ export async function recognizeBraceletDigitsFromFrame(
   }
 
   await runLstmPasses()
-  let best = pickBestDigits(collected)
+  const best = pickBestDigits(collected)
   if (best) return best
 
   const worker2 = await createWorker('eng', OEM.TESSERACT_LSTM_COMBINED)

@@ -3,6 +3,7 @@ import {
   Bell,
   CircleHelp,
   ChevronDown,
+  FileText,
   FolderOpen,
   LayoutGrid,
   ListChecks,
@@ -59,6 +60,7 @@ import { MovimientosTab } from './tabs/MovimientosTab'
 import { StockTab } from './tabs/StockTab'
 import { ToolsTab } from './tabs/ToolsTab'
 import { IntegrationsTab } from './tabs/IntegrationsTab'
+import { DocumentsTab } from './tabs/DocumentsTab'
 import { LinajeDelLoteModal } from './traceability/LinajeDelLoteModal'
 import { GreenLuckLogoMark } from './branding/GreenLuckLogoMark'
 import { PricingModal } from './PricingModal'
@@ -74,9 +76,9 @@ export type DashboardTab =
   | 'movimientos'
   | 'tools'
   | 'integrations'
+  | 'documents'
   | 'settings'
 
-export { bentoShell }
 
 /** Mismo círculo 56px y easing de ancho que el FAB «Anadir plantas» en `CultivoTab`. */
 const COMPLIANCE_BADGE_COLLAPSED_PX = 56
@@ -95,6 +97,7 @@ const navIds: { id: DashboardTab; icon: typeof LayoutGrid; labelKey: string }[] 
   { id: 'movimientos', icon: ListChecks, labelKey: 'nav.movimientos' },
   { id: 'tools', icon: Wrench, labelKey: 'nav.tools' },
   { id: 'integrations', icon: Plug, labelKey: 'nav.integrations' },
+  { id: 'documents', icon: FileText, labelKey: 'nav.documents' },
   { id: 'settings', icon: Settings, labelKey: 'nav.settings' },
 ]
 
@@ -104,6 +107,7 @@ const settingsNavSubItems: { section: SettingsNavSection; labelKey: string }[] =
   { section: 'general', labelKey: 'nav.settingsSubGeneral' },
   { section: 'profile', labelKey: 'nav.settingsSubProfile' },
   { section: 'company', labelKey: 'nav.settingsSubCompany' },
+  { section: 'team', labelKey: 'nav.settingsSubTeam' },
   { section: 'subscription', labelKey: 'nav.settingsSubSubscription' },
 ]
 
@@ -491,6 +495,7 @@ export function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [seenNotifCount, setSeenNotifCount] = useState(0)
   const [helpOpen, setHelpOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [myProfileModalOpen, setMyProfileModalOpen] = useState(false)
@@ -586,6 +591,7 @@ export function Dashboard() {
 
   const notifications = useSociosStore((s) => s.notifications)
   const clearNotifications = useSociosStore((s) => s.clearNotifications)
+  const unreadCount = Math.max(0, notifications.length - seenNotifCount)
   const restoreToHarvestBatch = useCultivationStore((s) => s.restoreToHarvestBatch)
   const popoverEase = [0.22, 1, 0.36, 1] as const
   const popoverTransition = reduceMotion ? { duration: 0 } : { duration: 0.22, ease: popoverEase }
@@ -886,17 +892,20 @@ export function Dashboard() {
         <button
           type="button"
           onClick={() => {
-            setNotifOpen((v) => !v)
+            const opening = !notifOpen
+            setNotifOpen(opening)
             setHelpOpen(false)
             setProfileOpen(false)
-            if (!notifOpen) clearNotifications()
+            if (opening) setSeenNotifCount(notifications.length)
           }}
           className={cn(iconPill, 'relative')}
           aria-label={t('topBar.notifications')}
         >
           <Bell className="h-[18px] w-[18px]" strokeWidth={2} />
-          {notifications.length > 0 ? (
-            <span className="absolute right-2 top-2 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#181818]" />
+          {unreadCount > 0 ? (
+            <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-white dark:ring-[#181818]">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
           ) : null}
         </button>
         <AnimatePresence>
@@ -911,26 +920,65 @@ export function Dashboard() {
               transition={popoverTransition}
               style={{ transformOrigin: 'top right' }}
               className={cn(
-                'absolute right-0 top-[calc(100%+0.4rem)] z-[70] w-72 p-2',
+                'absolute right-0 top-[calc(100%+0.4rem)] z-[70] w-80 overflow-hidden',
                 topBarPopoverSurface,
               )}
             >
-              <p className="px-2 py-1 text-xs font-semibold text-gray-500 dark:text-[#8c8c8c]">
-                {t('topBar.notifications')}
-              </p>
+              <div className="flex items-center justify-between px-3 pb-1.5 pt-3">
+                <p className="text-xs font-semibold text-gray-500 dark:text-[#8c8c8c]">
+                  {t('topBar.notifications')}
+                </p>
+                {notifications.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { clearNotifications(); setSeenNotifCount(0) }}
+                    className="text-[11px] text-gray-400 underline underline-offset-2 hover:text-gray-600 dark:text-[#666] dark:hover:text-[#aaa]"
+                  >
+                    Limpiar todo
+                  </button>
+                )}
+              </div>
               {notifications.length === 0 ? (
-                <p className="rounded-xl px-2 py-2 text-sm text-gray-600 dark:text-[#a3a3a3]">Sin novedades.</p>
+                <p className="px-3 pb-3 pt-1 text-sm text-gray-500 dark:text-[#a3a3a3]">Sin novedades.</p>
               ) : (
-                <div className="space-y-1">
-                  {notifications.slice(0, 8).map((n) => (
-                    <div
-                      key={n.id}
-                      className="rounded-xl px-2 py-2 text-sm text-gray-700 dark:text-[#f1f1f1]"
-                    >
-                      <p className="text-[12px] font-semibold text-gray-900 dark:text-[#f1f1f1]">{n.title}</p>
-                      <p className="mt-0.5 text-[12px] text-gray-600 dark:text-[#a3a3a3]">{n.body}</p>
-                    </div>
-                  ))}
+                <div className="max-h-80 overflow-y-auto pb-2">
+                  {notifications.slice(0, 12).map((n) => {
+                    const toneBar =
+                      n.tone === 'rose' ? 'bg-rose-500'
+                      : n.tone === 'amber' ? 'bg-amber-400'
+                      : 'bg-emerald-500'
+                    const ago = (() => {
+                      const diff = Date.now() - new Date(n.createdAt).getTime()
+                      const mins = Math.floor(diff / 60000)
+                      if (mins < 1) return 'ahora'
+                      if (mins < 60) return `${mins}m`
+                      const hrs = Math.floor(mins / 60)
+                      if (hrs < 24) return `${hrs}h`
+                      return `${Math.floor(hrs / 24)}d`
+                    })()
+                    return (
+                      <div
+                        key={n.id}
+                        className="relative flex items-start gap-2.5 px-3 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.04]"
+                      >
+                        <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', toneBar)} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[12px] font-semibold leading-snug text-gray-900 dark:text-[#f1f1f1]">
+                            {n.title}
+                          </p>
+                          <p className="mt-0.5 text-[11px] leading-snug text-gray-500 dark:text-[#a3a3a3]">
+                            {n.body}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-[10px] text-gray-400 dark:text-[#666]">{ago}</span>
+                      </div>
+                    )
+                  })}
+                  {notifications.length > 12 && (
+                    <p className="px-3 pb-1 pt-0.5 text-center text-[11px] text-gray-400 dark:text-[#666]">
+                      +{notifications.length - 12} anteriores
+                    </p>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -1445,6 +1493,7 @@ export function Dashboard() {
                     {tab === 'movimientos' && <MovimientosTab />}
                     {tab === 'tools' && <ToolsTab />}
                     {tab === 'integrations' && <IntegrationsTab />}
+                    {tab === 'documents' && <DocumentsTab />}
                     {tab === 'settings' && (
                       <SettingsTab
                         activeSection={settingsSection}
