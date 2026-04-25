@@ -1,0 +1,62 @@
+/**
+ * Plantilla editable — Anexo III consentimiento informado bilateral (Ley 26.529, Res. SSS 561/2014, marco Ley 27.350).
+ * El club la entrega al paciente; el firmado se archiva en el perfil (Documentos).
+ */
+export const CONSENTIMIENTO_ANEXO_III_TEMPLATE = `ANEXO III CONSENTIMIENTO INFORMADO BILATERAL
+
+Entre el Sr. / Sra. ………….., DNI ………, con domicilio real en …………., Historia Clínica N° , por sí/representada por ………….., en adelante "EL/LA PACIENTE", por una parte; y el Dr./Dra. ………., DNI………, Matrícula ………….., con domicilio real en......... , en adelante "EL/LA PROFESIONAL", por el otro, convienen en celebrar el presente acuerdo de consentimiento informado de acuerdo a lo dispuesto por la Ley 26.529, modificada por la Ley Nº 26.742, conforme los términos establecidos en la Resolución de la Súper Intendencia de Seguros de Salud N° 561/2014, sujeto a las siguientes cláusulas:
+
+PRIMERO: EL/LA PROFESIONAL luego de la evaluación del paciente informa que éste padece:
+
+……………………………………………………………………………………………
+
+(EL/LA PROFESIONAL deberá consignar la naturaleza de la patología y su evolución)
+
+SEGUNDO: EL/LA PROFESIONAL propone para el tratamiento de la patología detallada en el artículo primero realizar el siguiente tratamiento:
+
+………………………………………………………………….........................................
+
+(EL/LA PROFESIONAL deberá consignar en qué consiste el procedimiento propuesta y cómo se llevará a cabo, detallando: cantidad de plantas, dosis, concentración de THC, tipo y frecuencia de analítica requerida, etc.)
+
+Los beneficios razonables del tratamiento propuesta consisten en:
+
+……………………………………………………………….........................................
+
+(EL/LA PROFESIONAL deberá consignar los beneficios que el tratamiento deberían traer, conforme la patología detallada)
+
+Las consecuencias de la denegación por parte del paciente son:
+
+……………………………………………………………….........................................
+
+(EL/LA PROFESIONAL deberá consignar qué consecuencias tendrá el paciente en caso de negarse a recibir el tratamiento propuesto).
+
+Los riesgos del tratamiento son:
+
+……………………………………….........................................
+
+(EL/LA PROFESIONAL deberá consignar los todos los riesgos, complicaciones y efectos adversos que pueda tener el paciente al recibir el tratamiento
+
+TERCERO: EL/LA PACIENTE declara haber tomado conocimiento y entendido todo lo consignado por el EL/LA PROFESIONAL, médico tratante. Asimismo, declara haber tenido la oportunidad de realizar todas las preguntas que necesitó para tomar libremente la presente decisión.
+
+CUARTO: EL/LA PROFESIONAL informó y EL/LA PACIENTE aceptó y comprendió que el aceite de cannabis y sus derivados, para uso medicinal, resultantes de la práctica del cultivo no constituye un medicamento, sustancia y/o producto autorizado y aprobado por la Administración Nacional de Medicamentos, Alimentos y Tecnología (ANMAT), única autoridad regulatoria nacional con competencia para habilitar el registro.
+
+QUINTA: EL/LA PACIENTE y EL/LA PROFESIONAL se compromete a cumplir con los requerimientos establecidos por la autoridad de Aplicación de la Ley 27.350 y su Decreto Reglamentario 883/2020, sus modificatorias y complementarias y toda aquella norma que pudiera reemplazarla.
+
+SEXTA: EL/LA PACIENTE tendrá derecho a revocar este consentimiento informado de conformidad con lo dispuesto por el artículo 10 de la Ley 26.529.
+
+Se firman 2 (dos) ejemplares del presente de un mismo tenor en ………… a los ............días del mes de…………….. del año ……………
+
+Firma y Aclaración de EL/LA PROFESIONAL
+
+Firma y Aclaración EL/LA PACIENTE
+`
+
+export const CONSENTIMIENTO_ANEXO_III_FILENAME =
+  'ANEXO_III_consentimiento_informado_bilateral_plantilla.txt'
+
+/** Ruta servida por Vite desde `public/templates/` (archivo físico en el repo). */
+export function getConsentimientoAnexoIIIPublicUrl(): string {
+  const base = import.meta.env.BASE_URL || '/'
+  const normalized = base.endsWith('/') ? base : `${base}/`
+  return `${normalized}templates/${CONSENTIMIENTO_ANEXO_III_FILENAME}`
+}

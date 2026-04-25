@@ -113,7 +113,7 @@ const settingsNavSubItems: { section: SettingsNavSection; labelKey: string }[] =
 
 type SearchHit = {
   key: string
-  type: 'planta' | 'lote' | 'sala' | 'stock' | 'licencia' | 'documento' | 'comando'
+  type: 'planta' | 'lote' | 'sala' | 'stock' | 'licencia' | 'documento' | 'comando' | 'socio'
   label: string
   sub: string
   tab: DashboardTab
@@ -590,6 +590,7 @@ export function Dashboard() {
   }, [measureComplianceBadgeExpanded])
 
   const notifications = useSociosStore((s) => s.notifications)
+  const sociosSearchList = useSociosStore((s) => s.socios)
   const clearNotifications = useSociosStore((s) => s.clearNotifications)
   const unreadCount = Math.max(0, notifications.length - seenNotifCount)
   const restoreToHarvestBatch = useCultivationStore((s) => s.restoreToHarvestBatch)
@@ -653,6 +654,22 @@ export function Dashboard() {
         label: tipo,
         sub: `Stock · ${gid || 'sin genética'}`,
         tab: 'inventory',
+      })
+    }
+
+    for (const socio of sociosSearchList) {
+      const nombre = String(socio.nombre ?? '').trim()
+      const dni = String(socio.dni ?? '').trim()
+      const code = String(socio.reprocannCode ?? '').trim()
+      const bag = `${nombre} ${dni} ${code} socio paciente reprocann`.toLowerCase()
+      if (!bag.includes(q)) continue
+      pushHit({
+        key: `socio-${socio.id}`,
+        type: 'socio',
+        label: nombre || `DNI ${dni || '—'}`,
+        sub: `DNI ${dni || '—'} · Reprocann ${code || '—'}`,
+        tab: 'socios',
+        itemId: socio.id,
       })
     }
 
@@ -735,12 +752,12 @@ export function Dashboard() {
       })
     }
     return hits.slice(0, 20)
-  }, [board, employees, searchQuery, stockItems, t, topoRooms, vaultDocuments])
+  }, [board, employees, searchQuery, sociosSearchList, stockItems, t, topoRooms, vaultDocuments])
 
   const searchHitGroups = useMemo(() => {
     const groups: Array<{ key: string; title: string; items: SearchHit[] }> = []
     const defs: Array<{ key: string; title: string; types: SearchHit['type'][] }> = [
-      { key: 'entities', title: 'Entidades', types: ['planta', 'lote', 'stock'] },
+      { key: 'entities', title: 'Entidades', types: ['planta', 'lote', 'stock', 'socio'] },
       { key: 'locations', title: 'Ubicaciones', types: ['sala'] },
       { key: 'compliance', title: 'Compliance', types: ['licencia', 'documento'] },
       { key: 'commands', title: 'Comandos', types: ['comando'] },
@@ -845,6 +862,15 @@ export function Dashboard() {
         window.dispatchEvent(
           new CustomEvent('cultivo:focus-item', {
             detail: { itemId: hit.itemId },
+          }),
+        )
+      }, 0)
+    }
+    if (hit.tab === 'socios' && hit.itemId) {
+      window.setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent('socios:open', {
+            detail: { socioId: hit.itemId },
           }),
         )
       }, 0)
@@ -1232,7 +1258,9 @@ export function Dashboard() {
                             ? t('topBar.searchTypeLote')
                             : hit.type === 'sala'
                               ? t('topBar.searchTypeSala')
-                              : hit.type}
+                              : hit.type === 'socio'
+                                ? t('topBar.searchTypeSocio')
+                                : hit.type}
                       </span>
                     </button>
                   ))}

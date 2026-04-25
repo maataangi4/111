@@ -112,7 +112,7 @@ export function PropagacionBatchCard({
   const isLote = item.trackingType !== 'planta'
   const title = String(item.strain ?? '')
   const subtitle = isLote
-    ? t('propagadorUi.loteId', { id: item.id })
+    ? item.inaseLegalLotLabel?.trim() || t('propagadorUi.loteId', { id: item.id })
     : t('propagadorUi.plantaId', { id: item.id })
   const locationLine = item.location?.trim() ? formatLocationInline(item.location) : ''
   const gt = (item.geneticsType ?? 'fotoperiodica') as GeneticsType

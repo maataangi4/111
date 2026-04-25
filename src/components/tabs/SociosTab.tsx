@@ -1,12 +1,32 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, BadgeCheck, CalendarClock, CreditCard, Search, Users } from 'lucide-react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  AlertTriangle,
+  BadgeCheck,
+  CalendarClock,
+  CircleHelp,
+  CreditCard,
+  Plus,
+  Users,
+} from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { useSociosStore, type Socio, type SocioLegalStatus } from '../../store/useSociosStore'
+import {
+  useSociosStore,
+  SOCIOS_CLUB_ACTIVE_CAP,
+  type Socio,
+  type SocioLegalStatus,
+} from '../../store/useSociosStore'
 import { SocioProfileModal } from '../socios/SocioProfileModal'
+import { CreateSocioModal } from '../socios/CreateSocioModal'
 
-const CLUB_LIMIT = 150
+/** Mismo verde que Cultivo / cabecera. */
+const SOCIOS_ADD_FAB_GREEN = '#06663F'
+const ADD_FAB_COLLAPSED_PX = 56
+const ADD_FAB_EXPAND_WIDTH_PAD_PX = 10
 const MONTHLY_GRAMS_LIMIT = 40
 const FLOWERING_PLANTS_PER_MEMBER_MAX = 9
+
+const MONTHLY_LIMIT_LEGAL_HELP =
+  'Límite mensual por socio: 40g, de conformidad con la Ley 27.350 y la Resolución 782/2022 del Ministerio de Salud de la Nación.'
 
 function fmtInt(n: number) {
   try {
@@ -97,8 +117,47 @@ export function SociosTab() {
   const socios = useSociosStore((s) => s.socios)
   const getSocioLegalStatus = useSociosStore((s) => s.getSocioLegalStatus)
   const getSocioInitials = useSociosStore((s) => s.getSocioInitials)
-  const [query, setQuery] = useState('')
   const [activeSocioId, setActiveSocioId] = useState<string | null>(null)
+  const [addFabOpen, setAddFabOpen] = useState(false)
+  const [addFabMotionOk, setAddFabMotionOk] = useState(true)
+  const [createSocioOpen, setCreateSocioOpen] = useState(false)
+  const [consumoHelpOpen, setConsumoHelpOpen] = useState(false)
+
+  const addFabLabelText = useMemo(() => 'Nuevo paciente', [])
+  const addFabMeasureRef = useRef<HTMLSpanElement>(null)
+  const [addFabExpandedW, setAddFabExpandedW] = useState(ADD_FAB_COLLAPSED_PX)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const sync = () => setAddFabMotionOk(!mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
+  useLayoutEffect(() => {
+    const el = addFabMeasureRef.current
+    if (!el) return
+    const measure = () => {
+      const w = Math.ceil(el.scrollWidth)
+      setAddFabExpandedW(
+        Math.min(920, Math.max(ADD_FAB_COLLAPSED_PX + 4, w + ADD_FAB_EXPAND_WIDTH_PAD_PX)),
+      )
+    }
+    let alive = true
+    const safeMeasure = () => {
+      if (alive) measure()
+    }
+    safeMeasure()
+    window.addEventListener('resize', safeMeasure)
+    const fonts = typeof document !== 'undefined' ? document.fonts : undefined
+    const p = fonts?.ready
+    if (p) void p.then(safeMeasure)
+    return () => {
+      alive = false
+      window.removeEventListener('resize', safeMeasure)
+    }
+  }, [addFabLabelText])
 
   const now = new Date()
   const in30 = useMemo(() => new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000), [now])
@@ -115,15 +174,6 @@ export function SociosTab() {
   )
 
   const plantLimit = activeSocios.length * FLOWERING_PLANTS_PER_MEMBER_MAX
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return socios
-    return socios.filter((s) => {
-      const key = `${s.nombre} ${s.dni} ${s.reprocannCode}`.toLowerCase()
-      return key.includes(q)
-    })
-  }, [socios, query])
 
   const activeSocio: Socio | null = useMemo(
     () => (activeSocioId ? socios.find((x) => x.id === activeSocioId) ?? null : null),
@@ -144,9 +194,59 @@ export function SociosTab() {
     <div className="min-h-0 w-full">
       <div className="flex flex-col gap-5 p-6 sm:p-7">
         <header className="flex flex-col gap-2">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0 flex-1">
               <h1 className="text-4xl font-semibold tracking-tight text-white">Socios</h1>
+            </div>
+            <div className="flex shrink-0 justify-end overflow-visible self-end sm:self-start">
+              <button
+                type="button"
+                aria-label={addFabLabelText}
+                title={addFabLabelText}
+                aria-expanded={addFabOpen}
+                onClick={() => setCreateSocioOpen(true)}
+                onMouseEnter={() => setAddFabOpen(true)}
+                onMouseLeave={() => setAddFabOpen(false)}
+                onFocus={() => setAddFabOpen(true)}
+                onBlur={() => setAddFabOpen(false)}
+                className={cn(
+                  'relative flex h-14 shrink-0 cursor-pointer items-center overflow-hidden rounded-full text-sm font-semibold text-white',
+                  addFabOpen ? 'justify-end' : 'justify-center',
+                  'hover:brightness-110 active:brightness-95',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#181818]',
+                )}
+                style={{
+                  width: addFabOpen ? addFabExpandedW : ADD_FAB_COLLAPSED_PX,
+                  backgroundColor: SOCIOS_ADD_FAB_GREEN,
+                  transition: addFabMotionOk ? 'width 420ms cubic-bezier(0.22, 1, 0.36, 1)' : undefined,
+                }}
+              >
+                <span
+                  ref={addFabMeasureRef}
+                  aria-hidden
+                  className="pointer-events-none absolute left-0 top-0 -z-10 flex w-max flex-row items-center gap-2 pl-5 pr-4 opacity-0"
+                >
+                  <span className="whitespace-nowrap">{addFabLabelText}</span>
+                  <Plus className="h-6 w-6 shrink-0" strokeWidth={2.25} aria-hidden />
+                </span>
+                <span
+                  className={cn(
+                    'relative z-[1] flex h-full w-max shrink-0 flex-row items-center',
+                    addFabOpen ? 'justify-end gap-2 pl-5 pr-4' : 'justify-center gap-0',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'min-w-0 overflow-hidden whitespace-nowrap transition-[max-width] duration-300 ease-out',
+                      addFabOpen ? 'max-w-[min(90vw,720px)]' : 'max-w-0',
+                    )}
+                    aria-hidden={!addFabOpen}
+                  >
+                    {addFabLabelText}
+                  </span>
+                  <Plus className="h-6 w-6 shrink-0" strokeWidth={2.25} aria-hidden />
+                </span>
+              </button>
             </div>
           </div>
         </header>
@@ -155,10 +255,10 @@ export function SociosTab() {
           <MetricCard
             icon={Users}
             title="Cupo Reprocann (límite ONG)"
-            value={`${fmtInt(activeSocios.length)} / ${CLUB_LIMIT}`}
+            value={`${fmtInt(activeSocios.length)} / ${SOCIOS_CLUB_ACTIVE_CAP}`}
             sub="Activos"
             tone="emerald"
-            progress={{ value: activeSocios.length, max: CLUB_LIMIT }}
+            progress={{ value: activeSocios.length, max: SOCIOS_CLUB_ACTIVE_CAP }}
           />
           <MetricCard
             icon={BadgeCheck}
@@ -177,40 +277,50 @@ export function SociosTab() {
         </section>
 
         <section className="flex min-h-0 flex-1 flex-col gap-3">
-          <div className="flex flex-col items-stretch justify-between gap-2 sm:flex-row sm:items-center">
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="relative w-full sm:w-[360px]">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar socio, DNI o código…"
-                  className={cn(
-                    'h-10 w-full rounded-full border-0 bg-[#252525] pl-12 pr-4 text-[15px] text-white outline-none',
-                    'placeholder:text-white/35 focus:bg-[#2a2a2a]',
-                  )}
-                />
-              </div>
-            </div>
-            <div className="text-xs text-white/45">
-              Límite mensual por socio: <span className="font-semibold text-white/70">{MONTHLY_GRAMS_LIMIT}g</span>
-            </div>
-          </div>
-
           <div className="min-h-0 flex-1">
             <div className="grid grid-cols-[1.6fr_1fr_1.1fr_1.2fr_0.9fr] gap-3 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
               <span>Socio</span>
               <span>Estado legal</span>
               <span>Código</span>
-              <span>Consumo mensual</span>
+              <div
+                className="relative flex min-w-0 items-center gap-1"
+                onMouseEnter={() => setConsumoHelpOpen(true)}
+                onMouseLeave={() => setConsumoHelpOpen(false)}
+              >
+                <span className="truncate">Consumo mensual</span>
+                <span
+                  className={cn(
+                    'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white/40',
+                    consumoHelpOpen ? 'text-white/70' : '',
+                  )}
+                  aria-hidden
+                >
+                  <CircleHelp className="h-3.5 w-3.5" strokeWidth={2} />
+                </span>
+                {consumoHelpOpen ? (
+                  <div className="absolute left-0 top-full z-30 w-[min(18rem,calc(100vw-2rem))] pt-1">
+                    {/* Puente invisible para no perder el hover al bajar al texto. */}
+                    <div className="absolute -top-2 left-0 right-0 h-3" aria-hidden />
+                    <div
+                      role="tooltip"
+                      className={cn(
+                        'relative rounded-xl border px-3 py-2.5 text-left shadow-lg',
+                        'border-white/[0.12] bg-[#1e1e1e] text-[11px] font-normal normal-case leading-snug tracking-normal text-white/85',
+                      )}
+                    >
+                      {MONTHLY_LIMIT_LEGAL_HELP}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <span>Finanzas</span>
             </div>
 
             <div className="min-h-0 max-h-[calc(100vh-25rem)] overflow-y-auto">
-              {filtered.length === 0 ? (
-                <div className="px-2 py-6 text-sm text-white/55">Sin resultados.</div>
+              {socios.length === 0 ? (
+                <div className="px-2 py-6 text-sm text-white/55">Sin socios.</div>
               ) : (
-                filtered.map((s) => (
+                socios.map((s) => (
                   (() => {
                     const legalStatus = getSocioLegalStatus(s)
                     const initials = getSocioInitials(s)
@@ -280,6 +390,11 @@ export function SociosTab() {
         </section>
       </div>
 
+      <CreateSocioModal
+        open={createSocioOpen}
+        onOpenChange={setCreateSocioOpen}
+        onCreated={(id) => setActiveSocioId(id)}
+      />
       <SocioProfileModal socio={activeSocio} open={Boolean(activeSocio)} onOpenChange={(v) => (!v ? setActiveSocioId(null) : undefined)} />
     </div>
   )

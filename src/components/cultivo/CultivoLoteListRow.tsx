@@ -143,9 +143,11 @@ export function CultivoLoteListRow({
     [plants],
   )
 
-  const loteLabel = rep.sourceBatchId?.trim()
-    ? t('cultivoBoard.loteRowId', { id: rep.sourceBatchId.trim() })
-    : t('cultivoBoard.loteRowSingle')
+  const loteLabel = rep.inaseLegalLotLabel?.trim()
+    ? rep.inaseLegalLotLabel.trim()
+    : rep.sourceBatchId?.trim()
+      ? t('cultivoBoard.loteRowId', { id: rep.sourceBatchId.trim() })
+      : t('cultivoBoard.loteRowSingle')
 
   const locationLine = useMemo(() => {
     const t0 = topologyKey(rep)

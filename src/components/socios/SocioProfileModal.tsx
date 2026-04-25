@@ -10,6 +10,10 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import {
+  CONSENTIMIENTO_ANEXO_III_FILENAME,
+  getConsentimientoAnexoIIIPublicUrl,
+} from '../../data/consentimientoAnexoIII'
 import { formatInClubTimeZone } from '../../lib/clubTime'
 import { cn } from '../../lib/cn'
 import { useCultivationStore } from '../../store/useCultivationStore'
@@ -42,6 +46,7 @@ export function SocioProfileModal({
   open: boolean
   onOpenChange: (v: boolean) => void
 }) {
+  const consentTemplateHref = useMemo(() => getConsentimientoAnexoIIIPublicUrl(), [])
   const [section, setSection] = useState<ProfileSection>('identidad')
   const [dispenseOpen, setDispenseOpen] = useState(false)
   const view = useMemo(() => (socio ? deriveSocioView(socio) : null), [socio])
@@ -246,6 +251,10 @@ export function SocioProfileModal({
                         { key: 'dniBack', label: 'DNI (dorso)' },
                         { key: 'reprocannPdf', label: 'Reprocann (PDF)' },
                         { key: 'recetaMedica', label: 'Receta médica' },
+                        {
+                          key: 'consentimientoAnexoIII',
+                          label: 'Anexo III — consentimiento informado (firmado)',
+                        },
                         { key: 'acuerdoAsociacion', label: 'Acuerdo de asociación (firmado)' },
                       ].map((row) => {
                         const k = row.key as keyof Socio['docs']
@@ -253,11 +262,22 @@ export function SocioProfileModal({
                         return (
                           <div
                             key={row.key}
-                            className="flex items-center justify-between gap-3 rounded-2xl bg-white p-3 shadow-sm dark:bg-[#1a1a1a]"
+                            className="flex items-start justify-between gap-3 rounded-2xl bg-white p-3 shadow-sm dark:bg-[#1a1a1a]"
                           >
-                            <div className="flex min-w-0 items-center gap-2">
-                              <FileText className="h-4 w-4 text-slate-500 dark:text-[#8c8c8c]" aria-hidden />
-                              <span className="truncate text-sm text-slate-800 dark:text-[#e5e5e5]">{row.label}</span>
+                            <div className="flex min-w-0 flex-1 flex-col items-stretch gap-1">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <FileText className="h-4 w-4 shrink-0 text-slate-500 dark:text-[#8c8c8c]" aria-hidden />
+                                <span className="truncate text-sm text-slate-800 dark:text-[#e5e5e5]">{row.label}</span>
+                              </div>
+                              {row.key === 'consentimientoAnexoIII' ? (
+                                <a
+                                  href={consentTemplateHref}
+                                  download={CONSENTIMIENTO_ANEXO_III_FILENAME}
+                                  className="w-max text-[11px] font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400/90"
+                                >
+                                  Descargar plantilla vacía (.txt)
+                                </a>
+                              ) : null}
                             </div>
                             <button
                               type="button"
@@ -265,7 +285,7 @@ export function SocioProfileModal({
                                 upsertSocio(socio.id, { docs: { ...socio.docs, [k]: present ? undefined : 'uploaded' } })
                               }
                               className={cn(
-                                'rounded-full px-3 py-1.5 text-xs font-semibold transition',
+                                'shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition',
                                 present
                                   ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/55'
                                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-[#2a2a2a] dark:text-[#c4c4c4] dark:hover:bg-[#303030]',

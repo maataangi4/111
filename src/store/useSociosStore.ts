@@ -5,6 +5,9 @@ import { dispatchTelegram } from '../lib/notifications/bus'
 export type SocioLegalStatus = 'vigente' | 'expira' | 'vencido'
 export type SocioFinancialStatus = 'al_dia' | 'deuda'
 
+/** Límite de socios activos con cupo Reprocann (ONG). */
+export const SOCIOS_CLUB_ACTIVE_CAP = 150
+
 export type DispenseRecord = {
   id: string
   date: string // ISO
@@ -51,6 +54,8 @@ export type SocioDocs = {
   reprocannPdf?: string
   recetaMedica?: string
   acuerdoAsociacion?: string
+  /** Anexo III — consentimiento informado bilateral (firmado / expediente). */
+  consentimientoAnexoIII?: string
 }
 
 export type Socio = {
@@ -130,10 +135,29 @@ function normalizeSocio(raw: unknown): Socio {
             recetaMedica: typeof x.docs.recetaMedica === 'string' ? x.docs.recetaMedica : undefined,
             acuerdoAsociacion:
               typeof x.docs.acuerdoAsociacion === 'string' ? x.docs.acuerdoAsociacion : undefined,
+            consentimientoAnexoIII:
+              typeof x.docs.consentimientoAnexoIII === 'string'
+                ? x.docs.consentimientoAnexoIII
+                : undefined,
           }
         : {},
   }
 }
+
+export type AddSocioDraft = {
+  nombre: string
+  dni: string
+  reprocannCode: string
+  reprocannExpiresOn: string | null
+  activo?: boolean
+  financialStatus?: SocioFinancialStatus
+  /** Si true, marca en expediente que ya hay copia firmada (mismo stub que otros docs). */
+  consentimientoSignedOnFile?: boolean
+}
+
+export type AddSocioResult =
+  | { ok: true; id: string }
+  | { ok: false; error: 'club_cap' | 'dup_dni' | 'invalid' }
 
 type SociosState = {
   socios: Socio[]
@@ -142,6 +166,7 @@ type SociosState = {
   pushNotification: (n: Omit<SociosNotification, 'id' | 'createdAt'> & { createdAt?: string }) => void
   clearNotifications: () => void
   upsertSocio: (id: string, patch: Partial<Socio>) => void
+  addSocio: (draft: AddSocioDraft) => AddSocioResult
   recordDispense: (args: {
     socioId: string
     grams: number
@@ -222,6 +247,41 @@ export const useSociosStore = create<SociosState>()(
         set((s) => ({
           socios: s.socios.map((x) => (x.id === id ? normalizeSocio({ ...x, ...patch, id }) : x)),
         })),
+
+      addSocio: (draft) => {
+        const nombre = String(draft.nombre ?? '').trim()
+        const dni = String(draft.dni ?? '').trim()
+        const digits = String(draft.reprocannCode ?? '').replace(/\D/g, '').slice(0, 6)
+        if (!nombre || !dni || digits.length !== 6) return { ok: false, error: 'invalid' }
+
+        const activo = draft.activo !== false
+        const activeCount = get().socios.filter((x) => x.activo).length
+        if (activo && activeCount >= SOCIOS_CLUB_ACTIVE_CAP) return { ok: false, error: 'club_cap' }
+
+        const dniKey = dni.toLowerCase()
+        if (get().socios.some((x) => x.dni.trim().toLowerCase() === dniKey)) {
+          return { ok: false, error: 'dup_dni' }
+        }
+
+        const id = uid()
+        const docs: SocioDocs = {}
+        if (draft.consentimientoSignedOnFile) docs.consentimientoAnexoIII = 'uploaded'
+        const socio = normalizeSocio({
+          id,
+          nombre,
+          dni,
+          reprocannCode: digits,
+          reprocannExpiresOn: draft.reprocannExpiresOn,
+          activo,
+          financialStatus: draft.financialStatus === 'deuda' ? 'deuda' : 'al_dia',
+          monthlyDispensedGrams: 0,
+          dispenseHistory: [],
+          payments: [],
+          docs,
+        })
+        set((s) => ({ socios: [socio, ...s.socios] }))
+        return { ok: true, id }
+      },
 
       getSocioLegalStatus: (socio) => legalStatusFromExpires(socio.reprocannExpiresOn),
 

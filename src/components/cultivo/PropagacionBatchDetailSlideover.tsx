@@ -1810,6 +1810,15 @@ export function PropagacionBatchDetailSlideover({
                   <h2 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl dark:text-[#f1f1f1]">
                     {item.strain}
                   </h2>
+                  {item.trackingType === 'lote' ? (
+                    <p className="mt-1 text-sm font-semibold tracking-wide text-gray-600 dark:text-[#a3a3a3]">
+                      {item.inaseLegalLotLabel?.trim() || t('propagadorUi.loteId', { id: item.id })}
+                    </p>
+                  ) : item.inaseLegalLotLabel?.trim() ? (
+                    <p className="mt-1 text-sm font-semibold tracking-wide text-gray-600 dark:text-[#a3a3a3]">
+                      {item.inaseLegalLotLabel.trim()}
+                    </p>
+                  ) : null}
                   <div className="group/desc relative mt-2 min-h-[1.5rem]">
                     {descEditing ? (
                       <textarea
