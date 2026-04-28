@@ -8,20 +8,24 @@ const norm = (s: string) => s.trim().toLowerCase()
 
 export function StrainAutocomplete({
   tenantId,
+  rows,
   value,
   onChange,
   className,
   placeholder,
   required,
   onSelectRow,
+  allowCustom = true,
 }: {
   tenantId: string
+  rows?: UnifiedStrainRow[]
   value: string
   onChange: (v: string) => void
   className?: string
   placeholder?: string
   required?: boolean
   onSelectRow?: (row: UnifiedStrainRow) => void
+  allowCustom?: boolean
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -30,7 +34,7 @@ export function StrainAutocomplete({
   const hydrateGlobalStrains = useStrainsStore((s) => s.hydrateGlobalStrains)
   const hydratingGlobal = useStrainsStore((s) => s.hydratingGlobal)
 
-  const all = getAllStrains(tenantId)
+  const all = rows ?? getAllStrains(tenantId)
   const query = value.trim()
   const filtered = useMemo(() => {
     if (!query) return all.slice(0, 12)
@@ -55,8 +59,9 @@ export function StrainAutocomplete({
   }, [open])
 
   useEffect(() => {
+    if (rows) return
     void hydrateGlobalStrains()
-  }, [hydrateGlobalStrains])
+  }, [hydrateGlobalStrains, rows])
 
   return (
     <div className="relative" ref={ref}>
@@ -72,7 +77,7 @@ export function StrainAutocomplete({
         }}
       />
 
-      {open ? (
+      {open && (filtered.length > 0 || hydratingGlobal) ? (
         <div
           className={cn(
             'absolute z-[110] mt-1.5 max-h-64 w-full overflow-auto rounded-2xl border p-1.5 shadow-[var(--shadow-soft-lg)]',
@@ -144,9 +149,11 @@ export function StrainAutocomplete({
               )}
             </span>
           ) : (
-            <span className="text-gray-500 dark:text-zinc-400">
-              {t('strainAutocomplete.newStrainHint')}
-            </span>
+            allowCustom ? (
+              <span className="text-gray-500 dark:text-zinc-400">
+                {t('strainAutocomplete.newStrainHint')}
+              </span>
+            ) : null
           )}
         </p>
       ) : null}

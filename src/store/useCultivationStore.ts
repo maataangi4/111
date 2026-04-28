@@ -1246,6 +1246,10 @@ function normalizePlantCardItem(x: Partial<PlantCardItem> & Record<string, unkno
     /** Legacy alert/plaga UI removed — normalize to ok on load. */
     healthStatus: x.healthStatus === 'ok' ? 'ok' : undefined,
     braceletId: x.braceletId != null ? String(x.braceletId) : undefined,
+    geneticStockLotEntryId:
+      x.geneticStockLotEntryId != null ? String(x.geneticStockLotEntryId).trim() || undefined : undefined,
+    geneticStockItemId:
+      x.geneticStockItemId != null ? String(x.geneticStockItemId).trim() || undefined : undefined,
     sourceBatchId: x.sourceBatchId != null ? String(x.sourceBatchId) : undefined,
     lotSegmentSuffix: x.lotSegmentSuffix != null ? String(x.lotSegmentSuffix).trim() || undefined : undefined,
     splitFromSourceBatchId:

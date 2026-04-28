@@ -4,12 +4,14 @@ import {
   CircleHelp,
   ChevronDown,
   FileText,
-  FolderOpen,
+  GitBranch,
   LayoutGrid,
   ListChecks,
   Menu,
   Moon,
+  Package,
   Plug,
+  Plus,
   Search,
   Settings,
   Shield,
@@ -58,6 +60,7 @@ import { SettingsTab } from './tabs/SettingsTab'
 import { SociosTab } from './tabs/SociosTab'
 import { MovimientosTab } from './tabs/MovimientosTab'
 import { StockTab } from './tabs/StockTab'
+import { TrazabilidadTab } from './tabs/TrazabilidadTab'
 import { ToolsTab } from './tabs/ToolsTab'
 import { IntegrationsTab } from './tabs/IntegrationsTab'
 import { DocumentsTab } from './tabs/DocumentsTab'
@@ -72,6 +75,7 @@ export type DashboardTab =
   | 'genetics'
   | 'cultivo'
   | 'inventory'
+  | 'trazabilidad'
   | 'socios'
   | 'movimientos'
   | 'tools'
@@ -92,7 +96,8 @@ const navIds: { id: DashboardTab; icon: typeof LayoutGrid; labelKey: string }[] 
   { id: 'dashboard', icon: LayoutGrid, labelKey: 'nav.dashboardSummary' },
   { id: 'genetics', icon: TestTube2, labelKey: 'nav.geneticsBank' },
   { id: 'cultivo', icon: Sprout, labelKey: 'nav.cultivo' },
-  { id: 'inventory', icon: FolderOpen, labelKey: 'nav.inventory' },
+  { id: 'inventory', icon: Package, labelKey: 'nav.inventory' },
+  { id: 'trazabilidad', icon: GitBranch, labelKey: 'nav.trazabilidad' },
   { id: 'socios', icon: Users, labelKey: 'nav.socios' },
   { id: 'movimientos', icon: ListChecks, labelKey: 'nav.movimientos' },
   { id: 'tools', icon: Wrench, labelKey: 'nav.tools' },
@@ -498,6 +503,7 @@ export function Dashboard() {
   const [seenNotifCount, setSeenNotifCount] = useState(0)
   const [helpOpen, setHelpOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const [myProfileModalOpen, setMyProfileModalOpen] = useState(false)
   const [linajeBatchId, setLinajeBatchId] = useState<string | null>(null)
   const [complianceOpen, setComplianceOpen] = useState(false)
@@ -825,6 +831,7 @@ export function Dashboard() {
       if (!next) return
       setTab(next)
       setSidebarMobileOpen(false)
+      setQuickActionsOpen(false)
     }
     window.addEventListener('dashboard:open-tab', onOpenTab as EventListener)
     return () => window.removeEventListener('dashboard:open-tab', onOpenTab as EventListener)
@@ -843,6 +850,7 @@ export function Dashboard() {
 
   const handleSearchHitClick = (hit: SearchHit) => {
     setSearchOpen(false)
+    setQuickActionsOpen(false)
     setSearchQuery('')
     if (hit.command === 'new_lot') {
       openCultivoCreate('lote')
@@ -882,6 +890,7 @@ export function Dashboard() {
     setNotifOpen(false)
     setHelpOpen(false)
     setProfileOpen(false)
+    setQuickActionsOpen(false)
     setPricingOpen(false)
     setTeamSlideMember(null)
   }
@@ -891,10 +900,19 @@ export function Dashboard() {
     setNotifOpen(false)
     setHelpOpen(false)
     setProfileOpen(false)
+    setQuickActionsOpen(false)
     setPricingOpen(false)
     setSidebarMobileOpen(false)
     setTeamSlideMember(id)
   }
+
+  const closeQuickActions = useCallback(() => setQuickActionsOpen(false), [])
+
+  const runAfterTabPaint = useCallback((fn: () => void) => {
+    window.requestAnimationFrame(() => {
+      window.setTimeout(fn, 0)
+    })
+  }, [])
 
   const sidebarHeader = (
     <div className="flex shrink-0 justify-end px-3 pb-2 pt-3 lg:hidden">
@@ -922,6 +940,7 @@ export function Dashboard() {
             setNotifOpen(opening)
             setHelpOpen(false)
             setProfileOpen(false)
+            setQuickActionsOpen(false)
             if (opening) setSeenNotifCount(notifications.length)
           }}
           className={cn(iconPill, 'relative')}
@@ -1019,6 +1038,7 @@ export function Dashboard() {
             setHelpOpen((v) => !v)
             setNotifOpen(false)
             setProfileOpen(false)
+            setQuickActionsOpen(false)
           }}
           className={cn(iconPill)}
           aria-label={t('topBar.help')}
@@ -1103,9 +1123,97 @@ export function Dashboard() {
         <button
           type="button"
           onClick={() => {
+            setQuickActionsOpen((v) => !v)
+            setNotifOpen(false)
+            setHelpOpen(false)
+            setProfileOpen(false)
+          }}
+          className={cn(iconPill)}
+          aria-label={t('topBar.quickActionsAria')}
+          aria-expanded={quickActionsOpen}
+          aria-haspopup="menu"
+        >
+          <Plus className="h-[18px] w-[18px]" strokeWidth={2.25} />
+        </button>
+        <AnimatePresence>
+          {quickActionsOpen ? (
+            <motion.div
+              key="topbar-quick-actions"
+              role="menu"
+              aria-label={t('topBar.quickActionsAria')}
+              initial={reduceMotion ? false : { opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: reduceMotion ? 0 : -8 }}
+              transition={popoverTransition}
+              style={{ transformOrigin: 'top right' }}
+              className={cn(
+                'absolute right-0 top-[calc(100%+0.4rem)] z-[70] min-w-[220px] p-1.5',
+                topBarPopoverSurface,
+              )}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-100/80 dark:text-[#f1f1f1] dark:hover:bg-white/[0.06]"
+                onClick={() => {
+                  closeQuickActions()
+                  setSidebarMobileOpen(false)
+                  setTab('inventory')
+                  runAfterTabPaint(() =>
+                    window.dispatchEvent(new CustomEvent('inventory:open-registrar-ingreso')),
+                  )
+                }}
+              >
+                <Package className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" strokeWidth={2} aria-hidden />
+                {t('topBar.quickActionStockIn')}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-100/80 dark:text-[#f1f1f1] dark:hover:bg-white/[0.06]"
+                onClick={() => {
+                  closeQuickActions()
+                  setSidebarMobileOpen(false)
+                  setTab('cultivo')
+                  runAfterTabPaint(() =>
+                    window.dispatchEvent(
+                      new CustomEvent('cultivo:open-create', { detail: { kind: 'lote' } }),
+                    ),
+                  )
+                }}
+              >
+                <Sprout className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" strokeWidth={2} aria-hidden />
+                {t('topBar.quickActionCultivoLot')}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-100/80 dark:text-[#f1f1f1] dark:hover:bg-white/[0.06]"
+                onClick={() => {
+                  closeQuickActions()
+                  setSidebarMobileOpen(false)
+                  setTab('socios')
+                  runAfterTabPaint(() =>
+                    window.dispatchEvent(new CustomEvent('socios:open-create')),
+                  )
+                }}
+              >
+                <Users className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" strokeWidth={2} aria-hidden />
+                {t('topBar.quickActionPatient')}
+              </button>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+
+      <div className="relative shrink-0">
+        <button
+          type="button"
+          onClick={() => {
             setProfileOpen((v) => !v)
             setNotifOpen(false)
             setHelpOpen(false)
+            setQuickActionsOpen(false)
           }}
           className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 dark:focus-visible:ring-gray-500 dark:focus-visible:ring-offset-[#181818]"
           aria-label={t('topBar.profile')}
@@ -1276,7 +1384,13 @@ export function Dashboard() {
   )
 
   const mainFullBleedContent =
-    tab === 'cultivo' || tab === 'socios' || tab === 'movimientos' || tab === 'settings'
+    tab === 'genetics' ||
+    tab === 'cultivo' ||
+    tab === 'inventory' ||
+    tab === 'trazabilidad' ||
+    tab === 'socios' ||
+    tab === 'movimientos' ||
+    tab === 'settings'
 
   return (
     <div className="relative min-h-screen w-full font-sans text-gray-900 dark:text-[#f1f1f1]">
@@ -1517,6 +1631,7 @@ export function Dashboard() {
                       </CultivoErrorBoundary>
                     )}
                     {tab === 'inventory' && <StockTab />}
+                    {tab === 'trazabilidad' && <TrazabilidadTab />}
                     {tab === 'socios' && <SociosTab />}
                     {tab === 'movimientos' && <MovimientosTab />}
                     {tab === 'tools' && <ToolsTab />}

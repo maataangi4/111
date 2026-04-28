@@ -81,6 +81,24 @@ body {
   background-clip: padding-box;
 }
 
+/* En tema oscuro, si quedó `.scrollbar-modern` sin el sufijo `-dark`, forzar paleta oscura. */
+.dark .scrollbar-modern {
+  scrollbar-color: rgb(82 82 82 / 0.85) rgb(28 28 28 / 0.95);
+}
+
+.dark .scrollbar-modern::-webkit-scrollbar-track {
+  background: rgb(28 28 28 / 0.98);
+}
+
+.dark .scrollbar-modern::-webkit-scrollbar-thumb {
+  background: rgb(82 82 82 / 0.75);
+}
+
+.dark .scrollbar-modern::-webkit-scrollbar-thumb:hover {
+  background: rgb(115 115 115 / 0.65);
+  background-clip: padding-box;
+}
+
 /* Тёмная полоса прокрутки (выпадающие списки на #161616 и т.п.). */
 .scrollbar-modern-dark {
   scrollbar-width: thin;

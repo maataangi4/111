@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
-import { AlertCircle, Shield } from 'lucide-react'
+import { AlertCircle, Minus, Plus, Shield } from 'lucide-react'
 import { INASE_VARIETIES } from '../../data/inaseVarieties'
 import { useTranslation } from '../../i18n/useTranslation'
 import {
@@ -10,15 +10,21 @@ import {
   nextInaseLegalLotSequence,
 } from '../../lib/cultivo/inaseLegalLotStrain'
 import { formatTopologyLabel } from '../../lib/locationTopologyFormat'
+import { normGeneticsStrain } from '../../lib/stockLinkedGenetics'
 import { useCultivationStore } from '../../store/useCultivationStore'
 import { useLocationTopologyStore } from '../../store/useLocationTopologyStore'
 import type { RoomPurpose, TopologySelection } from '../../store/locationTopologyTypes'
 import {
+  BRACELET_COLOR_TRACKING_OPTIONS,
   GENETICS_TYPE_OPTIONS,
   type CloneOriginKind,
   type CultivoKanbanTab,
+  type GeneticsBankEntry,
   type GeneticsType,
 } from '../../store/cultivationTypes'
+import type { StockItem } from '../../store/types'
+import { useCrmStore } from '../../store/useCrmStore'
+import type { AppLocale } from '../../store/useSettingsStore'
 import { type PlantCardItem } from './PlantCard'
 import { InaseVarietySearchSelect } from './InaseVarietySearchSelect'
 import { LocationSelector } from '../location/LocationSelector'
@@ -98,6 +104,56 @@ async function compressImageFileToDataUrl(file: File): Promise<string | null> {
   }
 }
 
+function findGeneticStockRowForStrain(
+  stock: StockItem[],
+  geneticsBank: GeneticsBankEntry[],
+  strainName: string,
+): StockItem | null {
+  const key = normGeneticsStrain(strainName)
+  if (!key) return null
+  const g = geneticsBank.find((x) => normGeneticsStrain(x.name) === key)
+  if (!g) return null
+  return (
+    stock.find((s) => s.geneticsEntryId === g.id) ??
+    stock.find((s) => !s.geneticsEntryId && normGeneticsStrain(s.tipo) === key) ??
+    null
+  )
+}
+
+function deductGeneticStockLots(
+  stockItem: StockItem,
+  takes: { entryId: string; qty: number }[],
+): Omit<StockItem, 'id'> | null {
+  const entries = [...(stockItem.geneticLotEntries ?? [])]
+  for (const { entryId, qty } of takes) {
+    if (qty <= 0) continue
+    const ix = entries.findIndex((e) => e.id === entryId)
+    if (ix < 0) return null
+    const cur = entries[ix]!
+    const next = Math.round((cur.units - qty) * 100) / 100
+    if (next < -0.0001) return null
+    if (next <= 0) entries.splice(ix, 1)
+    else entries[ix] = { ...cur, units: next }
+  }
+  const { id, ...rest } = stockItem
+  void id
+  const geneticUnits = Math.round(entries.reduce((s, e) => s + e.units, 0) * 100) / 100
+  return {
+    ...rest,
+    geneticLotEntries: entries.length ? entries : undefined,
+    geneticUnits,
+  }
+}
+
+function formatStockLotMonthLabel(isoDay: string, locale: AppLocale): string {
+  const ms = Date.parse(`${isoDay}T12:00:00`)
+  if (!Number.isFinite(ms)) return isoDay
+  return new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'es-AR', {
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(ms))
+}
+
 export type CreateCultivoPlantModalProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -114,11 +170,28 @@ function CreateCultivoPlantModalInner({
   entryKind,
   tenantId,
 }: CreateCultivoPlantModalProps) {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
+  const stock = useCrmStore((s) => s.stock)
+  const updateStock = useCrmStore((s) => s.updateStock)
   const setCultivoBoard = useCultivationStore((s) => s.setCultivoBoard)
   const geneticsBank = useCultivationStore((s) => (Array.isArray(s.geneticsBank) ? s.geneticsBank : []))
   const plantsRegistry = useCultivationStore((s) => (Array.isArray(s.plants) ? s.plants : []))
   const cultivationRooms = useCultivationStore((s) => (Array.isArray(s.rooms) ? s.rooms : []))
+
+  const geneticsBankRows = useMemo(() => {
+    return geneticsBank
+      .map((g) => ({
+        id: String(g.id),
+        name: String(g.name ?? '').trim(),
+        type: 'Club',
+        rating: 0,
+        effects: [],
+        flavors: [],
+        source: 'local' as const,
+        verified: true,
+      }))
+      .filter((x) => x.name)
+  }, [geneticsBank])
 
   const topoRooms = useLocationTopologyStore((s) => (Array.isArray(s.rooms) ? s.rooms : []))
   const topoFixtures = useLocationTopologyStore((s) => (Array.isArray(s.fixtures) ? s.fixtures : []))
@@ -144,6 +217,66 @@ function CreateCultivoPlantModalInner({
   const [createTopology, setCreateTopology] = useState<TopologySelection | null>(null)
   const [createTopologyError, setCreateTopologyError] = useState(false)
   const [createFillBannerShakeKey, setCreateFillBannerShakeKey] = useState(0)
+  /** Cantidades a tomar por `geneticLotEntries[].id` (semilla propia + almacén con partidas). */
+  const [lotCart, setLotCart] = useState<Record<string, number>>({})
+
+  const strainInGeneticsBank = useMemo(() => {
+    const q = createStrain.trim().toLowerCase()
+    if (!q) return true
+    return geneticsBankRows.some((r) => r.name.trim().toLowerCase() === q)
+  }, [createStrain, geneticsBankRows])
+
+  const splitStockRow = useMemo(() => {
+    if (createSeedType !== 'Semilla' || createSeedComplianceType !== 'propia') return null
+    const s = createStrain.trim()
+    if (!s) return null
+    return findGeneticStockRowForStrain(stock, geneticsBank, s)
+  }, [createSeedType, createSeedComplianceType, createStrain, stock, geneticsBank])
+
+  const splitLotEntries = useMemo(() => {
+    const raw = splitStockRow?.geneticLotEntries ?? []
+    return [...raw].filter((e) => e.units > 0).sort((a, b) => a.at.localeCompare(b.at))
+  }, [splitStockRow])
+
+  const useStockSplitCart = splitLotEntries.length > 0
+
+  const splitLotEntriesSig = useMemo(
+    () => splitLotEntries.map((e) => `${e.id}:${e.units}`).join('|'),
+    [splitLotEntries],
+  )
+
+  useEffect(() => {
+    if (!open) return
+    const next: Record<string, number> = {}
+    for (const e of splitLotEntries) next[e.id] = 0
+    setLotCart(next)
+  }, [open, splitLotEntriesSig])
+
+  const cartTotalSelected = useMemo(
+    () => Math.round(splitLotEntries.reduce((s, e) => s + (lotCart[e.id] ?? 0), 0) * 100) / 100,
+    [splitLotEntries, lotCart],
+  )
+
+  const bumpLotCart = useCallback(
+    (entryId: string, delta: number) => {
+      const entry = splitLotEntries.find((e) => e.id === entryId)
+      if (!entry) return
+      setLotCart((prev) => {
+        const maxAvail = entry.units
+        const cur = prev[entryId] ?? 0
+        let nextVal = Math.max(0, Math.min(maxAvail, Math.round((cur + delta) * 100) / 100))
+        if (createKind === 'planta' && delta > 0) {
+          const other = splitLotEntries.reduce(
+            (s, e) => (e.id === entryId ? s : s + (prev[e.id] ?? 0)),
+            0,
+          )
+          nextVal = Math.min(nextVal, Math.max(0, 1 - other))
+        }
+        return { ...prev, [entryId]: nextVal }
+      })
+    },
+    [splitLotEntries, createKind],
+  )
 
   const resetCreateFormToDefaults = useCallback(() => {
     setCreateKind('lote')
@@ -166,6 +299,7 @@ function CreateCultivoPlantModalInner({
     setCreateGeneticsType('fotoperiodica')
     setCreateDate(localIsoDate())
     setCreateGrowMode('indoor')
+    setLotCart({})
   }, [])
 
   useLayoutEffect(() => {
@@ -307,10 +441,56 @@ function CreateCultivoPlantModalInner({
         window.alert(t('cultivoBoard.errStrainRequired'))
         return
       }
+      const okInBank = geneticsBankRows.some(
+        (r) => r.name.trim().toLowerCase() === strainName.toLowerCase(),
+      )
+      if (!okInBank) {
+        window.alert(t('cultivoBoard.errStrainNotInGeneticsBank'))
+        return
+      }
     }
   
-    let qty: number
-    if (createKind === 'planta') {
+    let qty = 0
+    let stockSplitTakes: { entryId: string; qty: number }[] | null = null
+    const stockRowForSubmit =
+      createSeedType === 'Semilla' && createSeedComplianceType === 'propia'
+        ? findGeneticStockRowForStrain(stock, geneticsBank, strainName)
+        : null
+    const splitEntriesSubmit = [...(stockRowForSubmit?.geneticLotEntries ?? [])]
+      .filter((e) => e.units > 0)
+      .sort((a, b) => a.at.localeCompare(b.at))
+
+    const useStockSplitSubmit = splitEntriesSubmit.length > 0
+
+    if (useStockSplitSubmit) {
+      stockSplitTakes = splitEntriesSubmit
+        .map((e) => ({
+          entryId: e.id,
+          qty: Math.round((lotCart[e.id] ?? 0) * 100) / 100,
+        }))
+        .filter((x) => x.qty > 0)
+      const totalFromCart = stockSplitTakes.reduce((s, x) => s + x.qty, 0)
+      if (totalFromCart <= 0) {
+        window.alert(t('cultivoBoard.errSplitCartEmpty'))
+        return
+      }
+      for (const tk of stockSplitTakes) {
+        const e = splitEntriesSubmit.find((x) => x.id === tk.entryId)
+        if (!e || tk.qty > e.units + 0.0001) {
+          window.alert(t('cultivoBoard.errSplitCartOver'))
+          return
+        }
+      }
+      if (createKind === 'planta') {
+        if (totalFromCart !== 1 || stockSplitTakes.length !== 1) {
+          window.alert(t('cultivoBoard.errSplitCartPlantOne'))
+          return
+        }
+      } else if (totalFromCart < 2) {
+        window.alert(t('cultivoBoard.errSplitCartLotMin'))
+        return
+      }
+    } else if (createKind === 'planta') {
       qty = 1
     } else {
       const raw = String(createQty).trim().replace(',', '.')
@@ -329,21 +509,30 @@ function CreateCultivoPlantModalInner({
       }
       qty = n
     }
-  
-    const idPrefix = createKind === 'planta' ? 'P' : 'L'
-    const id = `${idPrefix}${Date.now().toString().slice(-5)}`
+
     const bankKey = strainName.toLowerCase()
     const bankImg =
       geneticsBank.find((g) => g.name.trim().toLowerCase() === bankKey)?.imageUrl?.trim() ?? ''
     const locationLabel = formatTopologyLabel(createTopology, topoRooms, topoFixtures, topoLevels)
     const inaseVariety = INASE_VARIETIES.find((v) => v.id === createInaseVarietyId) ?? null
     const inaseHarvestYearNum = Number(String(createInaseHarvestYear).trim())
-    const newRow: PlantCardItem = {
-      id,
+    const baseTs = Date.now()
+
+    const buildRow = (opts: {
+      id: string
+      rowQty: number
+      track: 'lote' | 'planta'
+      logIdx: number
+      geneticStockLotEntryId?: string
+      geneticStockItemId?: string
+    }): PlantCardItem => ({
+      id: opts.id,
       strain: strainName,
-      quantity: qty,
-      initialQuantity: createKind === 'lote' ? qty : 1,
-      trackingType: createKind,
+      quantity: opts.rowQty,
+      initialQuantity: opts.track === 'lote' ? opts.rowQty : 1,
+      trackingType: opts.track,
+      geneticStockLotEntryId: opts.geneticStockLotEntryId,
+      geneticStockItemId: opts.geneticStockItemId,
       seedType: createSeedType,
       seedComplianceType: createSeedType === 'Semilla' ? createSeedComplianceType : undefined,
       inaseVarietyId:
@@ -406,16 +595,51 @@ function CreateCultivoPlantModalInner({
         activeTab === 'propagacion'
           ? [
               {
-                id: `log-${Date.now()}`,
+                id: `log-${baseTs}-${opts.logIdx}`,
                 at: nowIsoDateTime(),
                 kind: 'system',
                 systemKey: 'batch_created',
               },
             ]
           : undefined,
+    })
+
+    const newRows: PlantCardItem[] = []
+    if (stockSplitTakes && stockRowForSubmit) {
+      let idx = 0
+      for (const tk of stockSplitTakes) {
+        const id = `${createKind === 'planta' ? 'P' : 'L'}${baseTs}-${++idx}`
+        newRows.push(
+          buildRow({
+            id,
+            rowQty: tk.qty,
+            track: createKind === 'planta' ? 'planta' : 'lote',
+            logIdx: idx,
+            geneticStockLotEntryId: tk.entryId,
+            geneticStockItemId: stockRowForSubmit.id,
+          }),
+        )
+      }
+    } else {
+      const idPrefix = createKind === 'planta' ? 'P' : 'L'
+      const id = `${idPrefix}${baseTs.toString().slice(-5)}`
+      newRows.push(
+        buildRow({
+          id,
+          rowQty: qty,
+          track: createKind,
+          logIdx: 0,
+        }),
+      )
     }
+
     onOpenChange(false)
-    setCultivoBoard((prev) => ({ ...prev, [activeTab]: [newRow, ...prev[activeTab]] }))
+    setCultivoBoard((prev) => ({ ...prev, [activeTab]: [...newRows, ...prev[activeTab]] }))
+    if (stockSplitTakes && stockRowForSubmit && stockSplitTakes.length > 0) {
+      const updated = deductGeneticStockLots(stockRowForSubmit, stockSplitTakes)
+      if (updated) updateStock(stockRowForSubmit.id, updated)
+      else window.alert(t('cultivoBoard.errStockAfterPlant'))
+    }
   }
 
   return (
@@ -822,38 +1046,124 @@ function CreateCultivoPlantModalInner({
                 </label>
                 <StrainAutocomplete
                   tenantId={tenantId}
+                  rows={geneticsBankRows}
                   value={createStrain}
                   onChange={setCreateStrain}
                   className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 dark:border-[#3d3d3d] dark:bg-[#2a2a2a] dark:text-[#f1f1f1] dark:placeholder:text-[#8c8c8c]"
                   placeholder={t('cultivoBoard.strainPh')}
+                  allowCustom={false}
                   onSelectRow={() => {
                     if (createKind === 'planta') setCreateQty('1')
                   }}
                 />
-                <div className="min-w-0">
-                  <label className="text-xs font-medium text-gray-600 dark:text-[#a3a3a3]">
-                    {t('cultivoBoard.quantity')}
-                    <span className="text-red-500"> *</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={createKind === 'lote' ? 2 : 1}
-                    max={99999}
-                    step={1}
-                    inputMode="numeric"
-                    className={cn(
-                      'mt-1 box-border min-h-[42px] w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-[#3d3d3d] dark:bg-[#2a2a2a] dark:text-[#f1f1f1]',
-                      INPUT_NO_NUMBER_SPINNER,
-                      createKind === 'planta' &&
-                        'cursor-not-allowed opacity-60',
-                    )}
-                    value={createQty}
-                    onChange={(e) => setCreateQty(e.target.value)}
-                    placeholder={t('cultivoBoard.qtyPh')}
-                    disabled={createKind === 'planta'}
-                    aria-label={t('cultivoBoard.quantity')}
-                  />
-                </div>
+                {!strainInGeneticsBank && createStrain.trim() ? (
+                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                    {t('cultivoBoard.strainMustExistInGeneticsBankHint')}
+                  </p>
+                ) : null}
+                {useStockSplitCart && createSeedType === 'Semilla' ? (
+                  <div className="mt-3 space-y-3 rounded-2xl border border-gray-200/80 bg-gray-50/50 p-4 dark:border-[#3d3d3d] dark:bg-[#252525]/80">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-[#f1f1f1]">
+                        {t('cultivoBoard.splitCartWhatTitle')}{' '}
+                        <span className="font-medium text-gray-600 dark:text-[#a3a3a3]">
+                          {t('cultivoBoard.splitCartSelectedStrain', {
+                            strain: createStrain.trim() || '—',
+                          })}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-[11px] leading-snug text-gray-600 dark:text-[#8c8c8c]">
+                        {t('cultivoBoard.splitCartHint')}
+                      </p>
+                    </div>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-[#e5e5e5]">
+                      {t('cultivoBoard.splitCartFromTitle')}
+                    </p>
+                    <ul className="m-0 list-none space-y-2 p-0">
+                      {splitLotEntries.map((e, i) => {
+                        const sel = lotCart[e.id] ?? 0
+                        const badge =
+                          BRACELET_COLOR_TRACKING_OPTIONS[i % BRACELET_COLOR_TRACKING_OPTIONS.length]?.emoji ??
+                          '🟢'
+                        const month = formatStockLotMonthLabel(e.at, locale)
+                        const max = e.units
+                        const plusDisabled =
+                          sel >= max ||
+                          (createKind === 'planta' && cartTotalSelected >= 1)
+                        return (
+                          <li
+                            key={e.id}
+                            className="flex flex-col gap-2 rounded-xl border border-gray-200/90 bg-white px-3 py-2.5 dark:border-[#3d3d3d] dark:bg-[#2a2a2a] sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="min-w-0 flex-1 text-sm">
+                              <span className="mr-1.5" aria-hidden>
+                                {badge}
+                              </span>
+                              <span className="font-medium text-gray-900 dark:text-[#f1f1f1]">
+                                {e.materialOrigin}
+                              </span>
+                              <span className="text-gray-500 dark:text-[#8c8c8c]"> · {month}</span>
+                              <span className="mt-1 block text-xs text-gray-600 dark:text-[#a3a3a3]">
+                                {t('cultivoBoard.splitCartRemain', { n: max })}
+                              </span>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <button
+                                type="button"
+                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3d3d3d] dark:bg-[#1c1c1c] dark:text-[#f1f1f1] dark:hover:bg-white/[0.06]"
+                                aria-label={t('cultivoBoard.splitCartDecAria')}
+                                disabled={sel <= 0}
+                                onClick={() => bumpLotCart(e.id, -1)}
+                              >
+                                <Minus className="h-4 w-4" strokeWidth={2.25} />
+                              </button>
+                              <span className="min-w-[2.5rem] text-center text-sm font-semibold tabular-nums text-gray-900 dark:text-[#f1f1f1]">
+                                {t('cultivoBoard.splitCartPick', { n: sel })}
+                              </span>
+                              <button
+                                type="button"
+                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3d3d3d] dark:bg-[#1c1c1c] dark:text-[#f1f1f1] dark:hover:bg-white/[0.06]"
+                                aria-label={t('cultivoBoard.splitCartIncAria')}
+                                disabled={plusDisabled}
+                                onClick={() => bumpLotCart(e.id, 1)}
+                              >
+                                <Plus className="h-4 w-4" strokeWidth={2.25} />
+                              </button>
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-[#f1f1f1]">
+                      {t('cultivoBoard.splitCartTotal', { n: cartTotalSelected })}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="min-w-0">
+                    <label className="text-xs font-medium text-gray-600 dark:text-[#a3a3a3]">
+                      {t('cultivoBoard.quantity')}
+                      <span className="text-red-500"> *</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={createKind === 'lote' ? 2 : 1}
+                      max={99999}
+                      step={1}
+                      inputMode="numeric"
+                      className={cn(
+                        'mt-1 box-border min-h-[42px] w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-[#3d3d3d] dark:bg-[#2a2a2a] dark:text-[#f1f1f1]',
+                        INPUT_NO_NUMBER_SPINNER,
+                        createKind === 'planta' &&
+                          'cursor-not-allowed opacity-60',
+                      )}
+                      value={createQty}
+                      onChange={(e) => setCreateQty(e.target.value)}
+                      placeholder={t('cultivoBoard.qtyPh')}
+                      disabled={createKind === 'planta'}
+                      aria-label={t('cultivoBoard.quantity')}
+                    />
+                  </div>
+                )}
               </div>
             )}
             <label className="block">
@@ -1032,7 +1342,9 @@ function CreateCultivoPlantModalInner({
               onClick={submitCreate}
               className="rounded-xl bg-green-700 px-3 py-2 text-sm font-medium text-white"
             >
-              {t('cultivoBoard.create')}
+              {useStockSplitCart && createSeedType === 'Semilla'
+                ? t('cultivoBoard.plantSubmit')
+                : t('cultivoBoard.create')}
             </button>
           </div>
           </div>

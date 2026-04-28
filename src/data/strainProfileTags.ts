@@ -13,7 +13,7 @@ export const STRAIN_TAGS_AROMAS: StrainProfileTag[] = [
   { id: 'dulce', es: 'Dulce', ru: 'Сладость' },
   { id: 'pino', es: 'Pino', ru: 'Хвоя / сосна' },
   { id: 'diesel', es: 'Diésel', ru: 'Дизель' },
-  { id: 'baya', es: 'Baya (Berry)', ru: 'Ягода' },
+  { id: 'baya', es: 'Baya', ru: 'Ягода' },
   { id: 'madera', es: 'Madera', ru: 'Древесина' },
   { id: 'skunk', es: 'Skunk', ru: 'Сканк' },
   { id: 'queso', es: 'Queso', ru: 'Сыр' },
@@ -56,18 +56,16 @@ export const STRAIN_TAGS_AROMAS: StrainProfileTag[] = [
 
 export const STRAIN_TAGS_EFECTOS: StrainProfileTag[] = [
   { id: 'relajacion', es: 'Relajación', ru: 'Расслабление' },
-  { id: 'felicidad', es: 'Felicidad', ru: 'Радость' },
-  { id: 'euforia', es: 'Euforia', ru: 'Эйфория' },
+  { id: 'felicidad', es: 'Bienestar', ru: 'Благополучие' },
   { id: 'energia', es: 'Energía', ru: 'Энергия' },
-  { id: 'creatividad', es: 'Creatividad', ru: 'Креативность' },
+  { id: 'creatividad', es: 'Claridad mental', ru: 'Ясность мышления' },
   { id: 'concentracion', es: 'Concentración', ru: 'Концентрация' },
-  { id: 'risas', es: 'Risas (Giggly)', ru: 'Смех / приступы смеха' },
+  { id: 'risas', es: 'Elevación del estado de ánimo', ru: 'Улучшение настроения' },
   { id: 'sociabilidad', es: 'Sociabilidad', ru: 'Общительность' },
-  { id: 'hormigueo', es: 'Hormigueo (Tingly)', ru: 'Покалывание' },
+  { id: 'hormigueo', es: 'Parestesias leves', ru: 'Лёгкие парестезии' },
   { id: 'sueno', es: 'Sueño', ru: 'Сонливость' },
-  { id: 'hambre', es: 'Hambre', ru: 'Аппетит / голод' },
-  { id: 'excitacion', es: 'Excitación (Aroused)', ru: 'Возбуждение' },
-  { id: 'inspiracion', es: 'Inspiración', ru: 'Вдохновение' },
+  { id: 'hambre', es: 'Estimulación del apetito', ru: 'Стимуляция аппетита' },
+  { id: 'inspiracion', es: 'Motivación', ru: 'Мотивация' },
   { id: 'calma', es: 'Calma', ru: 'Спокойствие' },
 ]
 
@@ -91,13 +89,13 @@ export const STRAIN_TAGS_MEDICINAL: StrainProfileTag[] = [
 ]
 
 export const STRAIN_TAGS_TERPENOS: StrainProfileTag[] = [
-  { id: 'mirceno', es: 'Mirceno (Efecto sedante/Tierra)', ru: 'Мирцен (седативный / земля)' },
-  { id: 'cariofileno', es: 'Cariofileno (Antiinflamatorio/Pimienta)', ru: 'Кариофиллен (антиокс. / перец)' },
-  { id: 'limoneno', es: 'Limoneno (Elevador/Cítrico)', ru: 'Лимонен (подъём / цитрус)' },
-  { id: 'pineno', es: 'Pineno (Alerta/Pino)', ru: 'Пинен (бодрость / хвоя)' },
-  { id: 'linalool', es: 'Linalool (Calmante/Floral)', ru: 'Линалол (успокаивающий / цветы)' },
-  { id: 'humuleno', es: 'Humuleno (Supresor de apetito/Madera)', ru: 'Хумулен (аппетит / древесина)' },
-  { id: 'terpinoleno', es: 'Terpinoleno (Sedante/Frutal)', ru: 'Терпинолен (седативный / фрукт)' },
+  { id: 'mirceno', es: 'Mirceno', ru: 'Мирцен' },
+  { id: 'cariofileno', es: 'Cariofileno', ru: 'Кариофиллен' },
+  { id: 'limoneno', es: 'Limoneno', ru: 'Лимонен' },
+  { id: 'pineno', es: 'Pineno', ru: 'Пинен' },
+  { id: 'linalool', es: 'Linalool', ru: 'Линалол' },
+  { id: 'humuleno', es: 'Humuleno', ru: 'Хумулен' },
+  { id: 'terpinoleno', es: 'Terpinoleno', ru: 'Терпинолен' },
   { id: 'ocimeno', es: 'Ocimeno', ru: 'Оцимен' },
   { id: 'bisabolol', es: 'Bisabolol', ru: 'Бисаболол' },
   { id: 'eucaliptol', es: 'Eucaliptol', ru: 'Эвкалиптол' },
@@ -106,12 +104,12 @@ export const STRAIN_TAGS_TERPENOS: StrainProfileTag[] = [
 ]
 
 export const STRAIN_TAGS_NEGATIVOS: StrainProfileTag[] = [
-  { id: 'boca_seca', es: 'Boca Seca', ru: 'Сухость во рту' },
-  { id: 'ojos_secos', es: 'Ojos Secos', ru: 'Сухость глаз' },
-  { id: 'mareo', es: 'Mareo', ru: 'Головокружение' },
-  { id: 'paranoia', es: 'Paranoia', ru: 'Паранойя' },
-  { id: 'ansiedad_neg', es: 'Ansiedad', ru: 'Тревога (побочный)' },
-  { id: 'dolor_cabeza_neg', es: 'Dolor de Cabeza', ru: 'Головная боль' },
+  { id: 'boca_seca', es: 'Sequedad bucal', ru: 'Сухость во рту' },
+  { id: 'ojos_secos', es: 'Sequedad ocular', ru: 'Сухость глаз' },
+  { id: 'mareo', es: 'Mareos', ru: 'Головокружение' },
+  { id: 'paranoia', es: 'Nerviosismo', ru: 'Нервозность' },
+  { id: 'ansiedad_neg', es: 'Ansiedad', ru: 'Тревожность (побочный)' },
+  { id: 'dolor_cabeza_neg', es: 'Cefalea', ru: 'Головная боль' },
 ]
 
 export const STRAIN_TAGS_BY_LIST = {

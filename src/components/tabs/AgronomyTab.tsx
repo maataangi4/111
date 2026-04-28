@@ -1895,25 +1895,12 @@ export function AgronomyTab({
   }, [ocrOpen, t])
 
   return (
-    <div>
+    <div className="min-h-0 w-full overflow-x-hidden px-6 pb-8 pt-6 md:px-8 md:pb-10 md:pt-8">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <div
-              className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-2xl shadow-sm',
-                C.card,
-              )}
-            >
-              <Leaf className="h-5 w-5 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} />
-            </div>
-            <h2 className={cn('text-2xl font-semibold tracking-tight', C.heading)}>
-              {t('nav.cultivo')}
-            </h2>
-          </div>
-          <p className={cn('mt-2 max-w-2xl text-sm leading-relaxed', C.muted)}>
-            {t('cultivation.subtitle')}
-          </p>
+          <h1 className="text-4xl font-semibold tracking-tight text-gray-900 dark:text-[#f1f1f1]">
+            {t('nav.geneticsBank')}
+          </h1>
         </div>
       </div>
 
@@ -1934,9 +1921,6 @@ export function AgronomyTab({
             className="space-y-4"
           >
             <div className="flex flex-wrap items-end justify-between gap-4">
-              <p className={cn('max-w-2xl text-sm leading-relaxed', C.muted)}>
-                {t('cultivation.geneticsBankSub')}
-              </p>
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.98 }}

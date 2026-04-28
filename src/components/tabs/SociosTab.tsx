@@ -190,6 +190,12 @@ export function SociosTab() {
     return () => window.removeEventListener('socios:open', onOpen as EventListener)
   }, [])
 
+  useEffect(() => {
+    const onCreate = () => setCreateSocioOpen(true)
+    window.addEventListener('socios:open-create', onCreate)
+    return () => window.removeEventListener('socios:open-create', onCreate)
+  }, [])
+
   return (
     <div className="min-h-0 w-full">
       <div className="flex flex-col gap-5 p-6 sm:p-7">

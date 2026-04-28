@@ -200,7 +200,7 @@ export function SoftSelect<T extends string>({
                         role="option"
                         aria-selected={selected}
                         className={cn(
-                          'flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition-colors',
+                          'flex w-full items-start rounded-xl px-3 py-2.5 text-left text-sm leading-snug transition-colors whitespace-normal break-words',
                           selected
                             ? 'bg-green-50/90 font-medium text-green-900 dark:bg-white/[0.08] dark:text-[#f1f1f1]'
                             : 'text-gray-700 hover:bg-gray-100/80 dark:text-[#d4d4d4] dark:hover:bg-white/[0.06]',

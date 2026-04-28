@@ -13,6 +13,15 @@ export interface Investment {
   amount: number
 }
 
+/** Partida de ingreso (semillas / esquejes) al stock genético. */
+export interface GeneticStockLotEntry {
+  id: string
+  /** Fecha del ingreso (YYYY-MM-DD). */
+  at: string
+  units: number
+  materialOrigin: string
+}
+
 export interface StockItem {
   id: string
   imageUrl: string
@@ -22,6 +31,12 @@ export interface StockItem {
   inventoryGrams?: number
   /** Id de entrada en banco genético (Agronomía). Sin enlace → no se muestra en almacén si no hay match por nombre. */
   geneticsEntryId?: string
+  /** @deprecated Sustituido por geneticLotEntries; se migra al cargar. */
+  materialOrigin?: string
+  /** Total unidades (suma de geneticLotEntries o legado). */
+  geneticUnits?: number
+  /** Historial de entradas por variedad (Semillas y Clones). */
+  geneticLotEntries?: GeneticStockLotEntry[]
 }
 
 export interface Sale {

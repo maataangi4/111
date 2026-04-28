@@ -5,6 +5,7 @@ import {
   Layers,
   Leaf,
   MapPin,
+  Package,
   Scissors,
   ShieldAlert,
   Sprout,
@@ -12,9 +13,11 @@ import {
   Timer,
   Zap,
 } from 'lucide-react'
+import { resolvePlantSupplyOriginLabel } from '../../lib/cultivo/resolvePlantSupplyOrigin'
 import { formatTopologyLabel } from '../../lib/locationTopologyFormat'
 import { daysUntilYmd, expectedAutoFloweringDateIso } from '../../lib/geneticsAutoFlower'
 import { useLocationTopologyStore } from '../../store/useLocationTopologyStore'
+import { useCrmStore } from '../../store/useCrmStore'
 import { useCultivationStore } from '../../store/useCultivationStore'
 import { useTranslation } from '../../i18n/useTranslation'
 import { cn } from '../../lib/cn'
@@ -118,6 +121,7 @@ export function CultivoLoteListRow({
   onSplitLote?: () => void
 }) {
   const { t } = useTranslation()
+  const stock = useCrmStore((s) => s.stock)
   const geneticsBank = useCultivationStore((s) => (Array.isArray(s.geneticsBank) ? s.geneticsBank : []))
   const topoRooms = useLocationTopologyStore((s) => (Array.isArray(s.rooms) ? s.rooms : []))
   const topoFixtures = useLocationTopologyStore((s) => (Array.isArray(s.fixtures) ? s.fixtures : []))
@@ -148,6 +152,11 @@ export function CultivoLoteListRow({
     : rep.sourceBatchId?.trim()
       ? t('cultivoBoard.loteRowId', { id: rep.sourceBatchId.trim() })
       : t('cultivoBoard.loteRowSingle')
+
+  const supplyOriginLine = useMemo(
+    () => resolvePlantSupplyOriginLabel(rep, stock),
+    [rep, stock],
+  )
 
   const locationLine = useMemo(() => {
     const t0 = topologyKey(rep)
@@ -307,6 +316,21 @@ export function CultivoLoteListRow({
                   <MapPin className="h-4 w-4 shrink-0 text-gray-400 dark:text-[#8c8c8c]" strokeWidth={2} aria-hidden />
                   <span className="min-w-0 truncate font-medium text-gray-700 dark:text-[#d4d4d4]" title={locationLine}>
                     {locationLine}
+                  </span>
+                </span>
+              ) : null}
+              {supplyOriginLine ? (
+                <span
+                  className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-sm"
+                  title={`${t('cultivoBoard.supplyOriginTitle')}: ${supplyOriginLine}`}
+                >
+                  <Package
+                    className="h-4 w-4 shrink-0 text-gray-400 dark:text-[#8c8c8c]"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 truncate font-medium text-gray-700 dark:text-[#d4d4d4]">
+                    {supplyOriginLine}
                   </span>
                 </span>
               ) : null}

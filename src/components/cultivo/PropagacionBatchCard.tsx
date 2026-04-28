@@ -1,9 +1,11 @@
 import { useReducedMotion } from 'framer-motion'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Calendar, Layers, MapPin, Sun, Timer } from 'lucide-react'
+import { ArrowRight, Calendar, Layers, MapPin, Package, Sun, Timer } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { useTranslation } from '../../i18n/useTranslation'
 import type { GeneticsType } from '../../store/cultivationTypes'
+import { resolvePlantSupplyOriginLabel } from '../../lib/cultivo/resolvePlantSupplyOrigin'
+import { useCrmStore } from '../../store/useCrmStore'
 import { useCultivationStore } from '../../store/useCultivationStore'
 import type { PlantCardItem } from './PlantCard'
 import { CanspaceMarkThumb } from './CanspaceMarkThumb'
@@ -67,6 +69,7 @@ export function PropagacionBatchCard({
   onDeleteRow: () => void
 }) {
   const { t } = useTranslation()
+  const stock = useCrmStore((s) => s.stock)
   const vegFabLabelText = t('propagadorUi.transplantToVeg')
   const [vegFabOpen, setVegFabOpen] = useState(false)
   const vegFabMotionOk = !useReducedMotion()
@@ -115,6 +118,7 @@ export function PropagacionBatchCard({
     ? item.inaseLegalLotLabel?.trim() || t('propagadorUi.loteId', { id: item.id })
     : t('propagadorUi.plantaId', { id: item.id })
   const locationLine = item.location?.trim() ? formatLocationInline(item.location) : ''
+  const supplyOriginLine = useMemo(() => resolvePlantSupplyOriginLabel(item, stock), [item, stock])
   const gt = (item.geneticsType ?? 'fotoperiodica') as GeneticsType
   const geneticsLabel = t(`geneticsTypeOption.${gt}` as 'geneticsTypeOption.fotoperiodica')
 
@@ -197,6 +201,21 @@ export function PropagacionBatchCard({
               <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-sm">
                 <MapPin className="h-4 w-4 shrink-0 text-gray-400 dark:text-[#8c8c8c]" strokeWidth={2} aria-hidden />
                 <span className="min-w-0 truncate font-medium text-gray-700 dark:text-[#d4d4d4]">{locationLine}</span>
+              </span>
+            ) : null}
+            {supplyOriginLine ? (
+              <span
+                className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-sm"
+                title={`${t('cultivoBoard.supplyOriginTitle')}: ${supplyOriginLine}`}
+              >
+                <Package
+                  className="h-4 w-4 shrink-0 text-gray-400 dark:text-[#8c8c8c]"
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                <span className="min-w-0 truncate font-medium text-gray-700 dark:text-[#d4d4d4]">
+                  {supplyOriginLine}
+                </span>
               </span>
             ) : null}
           </div>

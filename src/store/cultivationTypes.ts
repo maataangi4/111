@@ -491,6 +491,13 @@ export type PlantCardItem = {
   trackingType?: 'lote' | 'planta'
   /** Индивидуальный ID браслета после перевода в вегетацию. */
   braceletId?: string
+  /**
+   * Trazabilidad almacén: id de `StockItem.geneticLotEntries[]` consumido al plantar (semilla propia).
+   * Cada Lote de Cultivo debe referir una partida documentada, no mezclar en un solo id.
+   */
+  geneticStockLotEntryId?: string
+  /** Id de fila `StockItem` en inventario genético (auditoría cruzada). */
+  geneticStockItemId?: string
   /** Исходный Lote до архивации. */
   sourceBatchId?: string
   /** Tras Dividir lote: etiqueta visible A/B/C… (misma cepa, otro grupo físico). */

@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import type {
   Employee,
   EmployeeRole,
+  GeneticStockLotEntry,
   Investment,
   Sale,
   SortDir,
@@ -57,12 +58,52 @@ function normalizeEmployees(raw: unknown): Employee[] {
   return raw.map(normalizeEmployee)
 }
 
+function normalizeGeneticLotEntries(raw: unknown): GeneticStockLotEntry[] {
+  if (!Array.isArray(raw)) return []
+  const out: GeneticStockLotEntry[] = []
+  for (const e of raw) {
+    const o = e as Partial<GeneticStockLotEntry>
+    const id = typeof o.id === 'string' && o.id.trim() ? o.id.trim() : uid()
+    const at = typeof o.at === 'string' && o.at.trim() ? o.at.trim().slice(0, 10) : ''
+    const u = o.units
+    const mo = o.materialOrigin
+    const units = typeof u === 'number' && Number.isFinite(u) && u > 0 ? Math.round(u * 100) / 100 : 0
+    const materialOrigin = typeof mo === 'string' && mo.trim() ? mo.trim() : ''
+    if (!at || units <= 0 || !materialOrigin) continue
+    out.push({ id, at, units, materialOrigin })
+  }
+  return out
+}
+
 function normalizeStockItem(raw: unknown): StockItem {
   const x = raw as Partial<StockItem>
   const ig = x.inventoryGrams
   const gid = x.geneticsEntryId
+  const mo = x.materialOrigin
+  const gu = x.geneticUnits
+  const rowId = String(x.id ?? uid())
+  let entries = normalizeGeneticLotEntries(x.geneticLotEntries)
+  const guN = typeof gu === 'number' && Number.isFinite(gu) && gu > 0 ? Math.round(gu * 100) / 100 : 0
+  const moStr = typeof mo === 'string' && mo.trim() ? mo.trim() : ''
+  if (entries.length === 0 && guN > 0 && moStr) {
+    entries = [
+      {
+        id: `legacy-${rowId}`,
+        at: '2020-01-01',
+        units: guN,
+        materialOrigin: moStr,
+      },
+    ]
+  }
+  const totalUnits =
+    entries.length > 0
+      ? Math.round(entries.reduce((s, e) => s + e.units, 0) * 100) / 100
+      : guN > 0
+        ? guN
+        : undefined
+
   return {
-    id: String(x.id ?? uid()),
+    id: rowId,
     tipo: String(x.tipo ?? ''),
     precio: typeof x.precio === 'number' && Number.isFinite(x.precio) ? x.precio : 0,
     imageUrl: String(x.imageUrl ?? ''),
@@ -70,6 +111,8 @@ function normalizeStockItem(raw: unknown): StockItem {
       typeof ig === 'number' && Number.isFinite(ig) && ig >= 0 ? ig : undefined,
     geneticsEntryId:
       typeof gid === 'string' && gid.trim() ? gid.trim() : undefined,
+    geneticUnits: totalUnits,
+    geneticLotEntries: entries.length > 0 ? entries : undefined,
   }
 }
 

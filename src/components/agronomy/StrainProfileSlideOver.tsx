@@ -16,6 +16,7 @@ import { C } from '../../lib/crmUi'
 import { cn } from '../../lib/cn'
 import { adaptGlobalStrainToGeneticsDraft } from '../../lib/adaptGlobalStrainToGenetics'
 import { StrainAutocomplete } from '../ui/StrainAutocomplete'
+import { AvatarBadge } from '@/components/ui/avatar'
 
 type StrainTab = 'general' | 'cultivo' | 'genetica' | 'efectos'
 
@@ -49,6 +50,8 @@ function entryToDraft(entry: GeneticsBankEntry): Omit<GeneticsBankEntry, 'id'> {
   return { ...rest }
 }
 
+const BRAND_GREEN = '#06663F'
+
 function TagPillGrid({
   tags,
   selected,
@@ -62,7 +65,7 @@ function TagPillGrid({
 }) {
   const setSel = new Set(selected)
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5">
       {tags.map((tag) => {
         const on = setSel.has(tag.id)
         return (
@@ -73,9 +76,10 @@ function TagPillGrid({
             className={cn(
               'rounded-full px-3 py-1.5 text-left text-[12px] font-medium leading-snug transition',
               on
-                ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/30 dark:bg-emerald-500 dark:ring-emerald-400/25'
+                ? 'text-white shadow-sm'
                 : 'bg-gray-100/90 text-gray-700 ring-1 ring-gray-200/80 hover:bg-gray-100 dark:bg-zinc-800/90 dark:text-zinc-200 dark:ring-zinc-600/60 dark:hover:bg-zinc-800',
             )}
+            style={on ? { backgroundColor: BRAND_GREEN } : undefined}
           >
             {strainTagLabel(tag, locale)}
           </button>
@@ -171,6 +175,12 @@ export function StrainProfileSlideOver({
     } catch {
       window.alert('No se pudo procesar la imagen.')
     }
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  const clearStrainPhoto = () => {
+    setDraft((d) => ({ ...d, imageUrl: '' }))
+    if (fileRef.current) fileRef.current.value = ''
   }
 
   const handleSave = () => {
@@ -184,7 +194,7 @@ export function StrainProfileSlideOver({
       setTab('general')
       return
     }
-    const cont = onSave(draft)
+    const cont = onSave({ ...draft, breeder: undefined })
     if (cont !== false) onClose()
   }
 
@@ -212,11 +222,11 @@ export function StrainProfileSlideOver({
         className={cn(
           'mx-auto flex h-full w-full max-w-[1240px] flex-col overflow-hidden rounded-[2rem] border shadow-2xl',
           C.modalCard,
-          'border-gray-200/80 dark:border-zinc-700/80',
+          'border-gray-200/80 dark:border-zinc-800/80 dark:!bg-[#222222]',
         )}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <header className="shrink-0 border-b border-gray-100/90 px-6 pb-4 pt-5 dark:border-zinc-800 lg:px-8">
+        <header className="shrink-0 bg-[#fdfdfd] px-6 pb-3 pt-4 dark:bg-[#222222] lg:px-8">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2
@@ -225,9 +235,11 @@ export function StrainProfileSlideOver({
               >
                 {isNew ? t('cultivation.strainSlideTitleNew') : (initial?.name ?? t('cultivation.geneticsEdit'))}
               </h2>
-              <p className={cn('mt-1 text-sm leading-relaxed', C.muted)}>
-                {t('cultivation.strainSlideSubtitle')}
-              </p>
+              {t('cultivation.strainSlideSubtitle').trim() ? (
+                <p className={cn('mt-1 text-sm leading-relaxed', C.muted)}>
+                  {t('cultivation.strainSlideSubtitle')}
+                </p>
+              ) : null}
             </div>
             <button
               type="button"
@@ -238,12 +250,12 @@ export function StrainProfileSlideOver({
               <X className="h-5 w-5" />
             </button>
           </div>
+          {/* Дорожка заметно светлее #222222 фона модалки; #252525 от C.segmentedBg почти сливается (Δ≈3). */}
           <div
             className={cn(
-              'mt-4 flex gap-1 rounded-2xl border p-1 lg:max-w-[760px]',
-              'border-gray-200/80 bg-gray-50/80 dark:border-zinc-700 dark:bg-zinc-900/50',
+              'relative mt-3 flex w-full rounded-full p-1.5 shadow-inner',
+              'bg-gray-100/80 dark:bg-[#333333] dark:shadow-none',
             )}
-            role="tablist"
           >
             {TAB_KEYS.map(({ id, labelKey }) => (
               <button
@@ -253,24 +265,28 @@ export function StrainProfileSlideOver({
                 aria-selected={tab === id}
                 onClick={() => setTab(id)}
                 className={cn(
-                  'relative flex-1 rounded-xl px-2 py-2.5 text-center text-[12px] font-semibold sm:text-[13px]',
-                  tab === id ? C.heading : cn(C.muted, 'hover:text-gray-800 dark:hover:text-zinc-200'),
+                  'relative flex min-h-[42px] flex-1 items-center justify-center rounded-full px-4 py-2 text-sm transition-colors duration-200',
+                  tab === id
+                    ? 'font-semibold text-white'
+                    : 'font-medium text-gray-500 hover:text-green-800 dark:text-[#9a9a9a] dark:hover:text-[#f1f1f1]',
                 )}
               >
-                {tab === id && (
+                {tab === id ? (
                   <motion.span
-                    layoutId="strain-profile-tab-bg"
-                    className={cn('absolute inset-0 rounded-xl shadow-sm', C.segmentedPill)}
-                    transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+                    layoutId="strain-profile-tab-pill"
+                    className="pointer-events-none absolute inset-0 z-[1] rounded-full"
+                    style={{ backgroundColor: BRAND_GREEN }}
+                    transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+                    aria-hidden
                   />
-                )}
-                <span className="relative z-[1] leading-tight">{t(labelKey)}</span>
+                ) : null}
+                <span className="relative z-[2] leading-tight">{t(labelKey)}</span>
               </button>
             ))}
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 lg:px-8">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#fdfdfd] dark:bg-[#222222]">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={tab}
@@ -279,65 +295,82 @@ export function StrainProfileSlideOver({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              className="mx-auto w-full max-w-[1020px] space-y-5"
+              className={cn(
+                'flex-1 min-h-0 overflow-x-hidden overflow-y-auto py-5 pl-6 pr-0 scrollbar-modern outline-none lg:pl-8 dark:scrollbar-modern-dark',
+                tab === 'efectos' && 'py-2.5 lg:py-3',
+              )}
             >
+              <div
+                className={cn(
+                  tab === 'efectos' ? 'space-y-3' : 'space-y-5',
+                  'w-full max-w-none pr-4 lg:pr-6',
+                )}
+              >
               {tab === 'general' ? (
                 <>
-                  <div className="grid gap-4 lg:grid-cols-[300px_1fr] lg:items-start">
-                    <div
-                      className={cn(
-                        'relative mx-auto aspect-[16/10] w-full max-w-[320px] overflow-hidden rounded-2xl',
-                        C.imagePlaceholder,
-                        'ring-1 ring-black/[0.06] dark:ring-white/[0.08]',
-                      )}
-                    >
-                      {draft.imageUrl ? (
-                        <img src={draft.imageUrl} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-400">
-                          <ImagePlus className="h-10 w-10 opacity-60" strokeWidth={1.25} />
-                        </div>
-                      )}
+                  <div className="grid min-w-0 gap-4 lg:grid-cols-[11rem_minmax(0,1fr)] lg:items-start">
+                    <div className="relative h-44 w-44 shrink-0 justify-self-center lg:justify-self-start">
+                      <input
+                        ref={fileRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/*"
+                        className="sr-only"
+                        onChange={onFile}
+                      />
+                      <div
+                        className={cn(
+                          'relative h-full w-full overflow-hidden rounded-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08]',
+                        )}
+                      >
+                        {draft.imageUrl ? (
+                          <img src={draft.imageUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <>
+                            <div
+                              className={cn('absolute inset-0 bg-gradient-to-br', C.imagePlaceholder)}
+                              aria-hidden
+                            />
+                            <button
+                              type="button"
+                              onClick={() => fileRef.current?.click()}
+                              className="group absolute inset-0 z-10 flex items-center justify-center"
+                              aria-label={t('profileModal.choosePhoto')}
+                            >
+                              <ImagePlus
+                                className="h-14 w-14 text-gray-400 opacity-70 transition-all duration-200 ease-out group-hover:scale-[1.2] group-hover:text-white dark:text-[#8c8c8c] dark:opacity-80 dark:group-hover:text-white"
+                                strokeWidth={1.25}
+                                aria-hidden
+                              />
+                            </button>
+                          </>
+                        )}
+                        {draft.imageUrl ? (
+                          <AvatarBadge
+                            className="h-10 w-10 border-[3px] shadow-md"
+                            title={t('profileModal.removePhoto')}
+                            aria-label={t('profileModal.removePhoto')}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              clearStrainPhoto()
+                            }}
+                          >
+                            <X className="h-5 w-5" strokeWidth={2.25} />
+                          </AvatarBadge>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap gap-2">
-                        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
-                        <button
-                          type="button"
-                          onClick={() => fileRef.current?.click()}
-                          className={cn('rounded-2xl px-4 py-2.5 text-sm font-medium', C.btnSecondary)}
-                        >
-                          {t('stock.upload')}
-                        </button>
-                        <input
-                          className={cn(inputClass, 'min-w-[120px] flex-1')}
-                          value={draft.imageUrl}
-                          onChange={(e) => setDraft((d) => ({ ...d, imageUrl: e.target.value }))}
-                          placeholder={t('stock.imagePh')}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>{t('cultivation.geneticsName')}</label>
-                        <StrainAutocomplete
-                          tenantId={tenantId}
-                          value={draft.name}
-                          onChange={(v) => setDraft((d) => ({ ...d, name: v }))}
-                          onSelectRow={(row) => {
-                            setDraft((d) => adaptGlobalStrainToGeneticsDraft(row, d))
-                          }}
-                          className={inputClass}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>{t('cultivation.strainFieldBreeder')}</label>
-                        <input
-                          className={inputClass}
-                          value={draft.breeder ?? ''}
-                          onChange={(e) => setDraft((d) => ({ ...d, breeder: e.target.value }))}
-                          placeholder="…"
-                        />
-                      </div>
+                    <div className="min-w-0">
+                      <label className={labelClass}>{t('cultivation.geneticsName')}</label>
+                      <StrainAutocomplete
+                        tenantId={tenantId}
+                        value={draft.name}
+                        onChange={(v) => setDraft((d) => ({ ...d, name: v }))}
+                        onSelectRow={(row) => {
+                          setDraft((d) => adaptGlobalStrainToGeneticsDraft(row, d))
+                        }}
+                        className={inputClass}
+                        required
+                      />
                     </div>
                   </div>
                   <div>
@@ -456,7 +489,7 @@ export function StrainProfileSlideOver({
               {tab === 'efectos' ? (
                 <>
                   <section>
-                    <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-wide', C.muted)}>
+                    <p className={cn('mb-1 text-[11px] font-semibold uppercase tracking-wide', C.muted)}>
                       {t('cultivation.strainSectionAromas')}
                     </p>
                     <TagPillGrid
@@ -467,7 +500,7 @@ export function StrainProfileSlideOver({
                     />
                   </section>
                   <section>
-                    <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-wide', C.muted)}>
+                    <p className={cn('mb-1 text-[11px] font-semibold uppercase tracking-wide', C.muted)}>
                       {t('cultivation.strainSectionEfectos')}
                     </p>
                     <TagPillGrid
@@ -478,7 +511,7 @@ export function StrainProfileSlideOver({
                     />
                   </section>
                   <section>
-                    <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-wide', C.muted)}>
+                    <p className={cn('mb-1 text-[11px] font-semibold uppercase tracking-wide', C.muted)}>
                       {t('cultivation.strainSectionMedicinal')}
                     </p>
                     <TagPillGrid
@@ -489,7 +522,7 @@ export function StrainProfileSlideOver({
                     />
                   </section>
                   <section>
-                    <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-wide', C.muted)}>
+                    <p className={cn('mb-1 text-[11px] font-semibold uppercase tracking-wide', C.muted)}>
                       {t('cultivation.strainSectionTerpenos')}
                     </p>
                     <TagPillGrid
@@ -500,7 +533,7 @@ export function StrainProfileSlideOver({
                     />
                   </section>
                   <section>
-                    <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-wide', C.muted)}>
+                    <p className={cn('mb-1 text-[11px] font-semibold uppercase tracking-wide', C.muted)}>
                       {t('cultivation.strainSectionNegativos')}
                     </p>
                     <TagPillGrid
@@ -512,23 +545,25 @@ export function StrainProfileSlideOver({
                   </section>
                 </>
               ) : null}
+              </div>
             </motion.div>
           </AnimatePresence>
         </div>
 
-        <footer className="shrink-0 border-t border-gray-100 bg-white/95 px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950/95 lg:px-8">
-          <div className="mx-auto flex w-full max-w-[1020px] gap-2">
+        <footer className="shrink-0 bg-white/95 px-6 py-3 dark:bg-[#222222] lg:px-8">
+          <div className="flex w-full gap-2">
             <button
               type="button"
               onClick={onClose}
-              className={cn('flex-1 rounded-2xl border py-3.5 text-sm font-medium', C.btnSecondary)}
+              className={cn('flex-1 rounded-full border py-3.5 text-sm font-medium', C.btnSecondary)}
             >
               {t('common.cancel')}
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className={cn('flex-1 rounded-2xl py-3.5 text-sm font-semibold', C.btnPrimary)}
+              className={cn('flex-1 rounded-full py-3.5 text-sm font-semibold text-white hover:brightness-110 active:brightness-95')}
+              style={{ backgroundColor: BRAND_GREEN }}
             >
               {t('cultivation.strainSave')}
             </button>
