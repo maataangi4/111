@@ -1,6 +1,7 @@
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion'
 import {
   Bell,
+  Beaker,
   CircleHelp,
   ChevronDown,
   FileText,
@@ -61,6 +62,7 @@ import { SociosTab } from './tabs/SociosTab'
 import { MovimientosTab } from './tabs/MovimientosTab'
 import { StockTab } from './tabs/StockTab'
 import { TrazabilidadTab } from './tabs/TrazabilidadTab'
+import { LaboratorioTab } from './tabs/LaboratorioTab'
 import { ToolsTab } from './tabs/ToolsTab'
 import { IntegrationsTab } from './tabs/IntegrationsTab'
 import { DocumentsTab } from './tabs/DocumentsTab'
@@ -76,6 +78,7 @@ export type DashboardTab =
   | 'cultivo'
   | 'inventory'
   | 'trazabilidad'
+  | 'laboratorio'
   | 'socios'
   | 'movimientos'
   | 'tools'
@@ -98,6 +101,7 @@ const navIds: { id: DashboardTab; icon: typeof LayoutGrid; labelKey: string }[] 
   { id: 'cultivo', icon: Sprout, labelKey: 'nav.cultivo' },
   { id: 'inventory', icon: Package, labelKey: 'nav.inventory' },
   { id: 'trazabilidad', icon: GitBranch, labelKey: 'nav.trazabilidad' },
+  { id: 'laboratorio', icon: Beaker, labelKey: 'nav.laboratorio' },
   { id: 'socios', icon: Users, labelKey: 'nav.socios' },
   { id: 'movimientos', icon: ListChecks, labelKey: 'nav.movimientos' },
   { id: 'tools', icon: Wrench, labelKey: 'nav.tools' },
@@ -1388,6 +1392,7 @@ export function Dashboard() {
     tab === 'cultivo' ||
     tab === 'inventory' ||
     tab === 'trazabilidad' ||
+    tab === 'laboratorio' ||
     tab === 'socios' ||
     tab === 'movimientos' ||
     tab === 'settings'
@@ -1560,6 +1565,8 @@ export function Dashboard() {
                 ? 'scrollbar-modern overflow-x-visible overflow-y-auto dark:overflow-x-visible dark:overflow-y-auto'
                 : tab === 'dashboard'
                   ? 'overflow-x-hidden overflow-y-auto dark:overflow-x-hidden dark:overflow-y-auto'
+                  : tab === 'laboratorio'
+                    ? 'h-[calc(100vh-80px)] overflow-hidden bg-[#0a0a0a] dark:bg-[#0a0a0a]'
                   : mainFullBleedContent
                     ? 'scrollbar-modern overflow-x-hidden overflow-y-auto dark:overflow-x-hidden dark:overflow-y-auto'
                     : 'overflow-hidden dark:overflow-hidden',
@@ -1632,6 +1639,7 @@ export function Dashboard() {
                     )}
                     {tab === 'inventory' && <StockTab />}
                     {tab === 'trazabilidad' && <TrazabilidadTab />}
+                    {tab === 'laboratorio' && <LaboratorioTab />}
                     {tab === 'socios' && <SociosTab />}
                     {tab === 'movimientos' && <MovimientosTab />}
                     {tab === 'tools' && <ToolsTab />}

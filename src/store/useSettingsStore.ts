@@ -31,6 +31,8 @@ interface SettingsState {
   defaultPaymentMethod: DefaultPaymentMethodId
   /** Lote de post‑cosecha / inventario sugerido al dispensar; vacío = sin default */
   defaultPrimaryHarvestBatchId: string | null
+  /** Onboarding del módulo Laboratorio (se muestra una vez). */
+  laboratorioOnboardingDone: boolean
 
   setLocale: (l: AppLocale) => void
   setTheme: (t: AppTheme) => void
@@ -46,6 +48,7 @@ interface SettingsState {
   setInterfaceSounds: (v: boolean) => void
   setDefaultPaymentMethod: (m: DefaultPaymentMethodId) => void
   setDefaultPrimaryHarvestBatchId: (id: string | null) => void
+  setLaboratorioOnboardingDone: (v: boolean) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -66,6 +69,7 @@ export const useSettingsStore = create<SettingsState>()(
       interfaceSounds: true,
       defaultPaymentMethod: 'efectivo',
       defaultPrimaryHarvestBatchId: null,
+      laboratorioOnboardingDone: false,
 
       setLocale: (locale) => set({ locale }),
       setTheme: (theme) => set({ theme }),
@@ -87,6 +91,7 @@ export const useSettingsStore = create<SettingsState>()(
       setDefaultPaymentMethod: (defaultPaymentMethod) => set({ defaultPaymentMethod }),
       setDefaultPrimaryHarvestBatchId: (defaultPrimaryHarvestBatchId) =>
         set({ defaultPrimaryHarvestBatchId }),
+      setLaboratorioOnboardingDone: (laboratorioOnboardingDone) => set({ laboratorioOnboardingDone }),
     }),
     {
       name: 'green-luck-settings',
