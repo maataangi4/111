@@ -877,8 +877,7 @@ function CreateCultivoPlantModalInner({
                           | 'certificada'
                           | 'propia'
                         setCreateSeedComplianceType(next)
-                        if (next === 'certificada') {
-                        } else {
+                        if (next !== 'certificada') {
                           setCreateInaseVarietyId('')
                           setCreateInaseProviderRncyfs('')
                           setCreateInaseSecurityStamp('')
