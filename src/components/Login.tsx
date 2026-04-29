@@ -1,22 +1,22 @@
 import { motion } from 'framer-motion'
-import { Lock, User } from 'lucide-react'
+import { Lock, Mail } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from '../i18n/useTranslation'
 import { C } from '../lib/crmUi'
 import { cn } from '../lib/cn'
-import { useCrmStore } from '../store/useCrmStore'
+import { useAuthStore } from '../store/useAuthStore'
 
 export function Login() {
   const { t } = useTranslation()
-  const login = useCrmStore((s) => s.login)
-  const [username, setUsername] = useState('')
+  const signIn = useAuthStore((s) => s.signIn)
+  const authError = useAuthStore((s) => s.error)
+  const loading = useAuthStore((s) => s.loading)
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState(false)
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const ok = login(username, password)
-    setError(!ok)
+    await signIn(email, password)
   }
 
   const inputClass = cn(
@@ -54,19 +54,18 @@ export function Login() {
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className={cn('mb-1.5 block text-xs font-medium', C.label)}>
-              {t('login.user')}
+              Email
             </label>
             <div className="relative">
-              <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-green-700" />
+              <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-green-700" />
               <input
+                type="email"
                 className={cn(inputClass, 'pl-11')}
-                placeholder="admin"
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value)
-                  setError(false)
-                }}
-                autoComplete="username"
+                placeholder="tu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
               />
             </div>
           </div>
@@ -81,34 +80,34 @@ export function Login() {
                 className={cn(inputClass, 'pl-11')}
                 placeholder="••••••"
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value)
-                  setError(false)
-                }}
+                onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
+                required
               />
             </div>
           </div>
 
-          {error && (
+          {authError && (
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="text-center text-sm text-red-600 dark:text-red-400"
             >
-              {t('login.error')}
+              {authError}
             </motion.p>
           )}
 
           <motion.button
             type="submit"
+            disabled={loading}
             whileTap={{ scale: 0.99 }}
             className={cn(
               'mt-2 w-full rounded-2xl py-3.5 text-[15px] font-medium transition',
               C.btnPrimary,
+              loading && 'opacity-60 cursor-not-allowed',
             )}
           >
-            {t('login.submit')}
+            {loading ? 'Entrando...' : t('login.submit')}
           </motion.button>
         </form>
       </motion.div>

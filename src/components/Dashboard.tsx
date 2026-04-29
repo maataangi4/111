@@ -53,6 +53,7 @@ import { useSettingsStore } from '../store/useSettingsStore'
 import { useCultivationStore } from '../store/useCultivationStore'
 import { useCrmStore } from '../store/useCrmStore'
 import { useSociosStore } from '../store/useSociosStore'
+import { useAuthStore } from '../store/useAuthStore'
 import { AgronomyTab } from './tabs/AgronomyTab'
 import { CultivoErrorBoundary } from './CultivoErrorBoundary'
 import { CultivoTab } from './tabs/CultivoTab'
@@ -112,13 +113,24 @@ const navIds: { id: DashboardTab; icon: typeof LayoutGrid; labelKey: string }[] 
 
 const mainNavIds = navIds.filter((item) => item.id !== 'settings')
 
-const settingsNavSubItems: { section: SettingsNavSection; labelKey: string }[] = [
-  { section: 'general', labelKey: 'nav.settingsSubGeneral' },
-  { section: 'profile', labelKey: 'nav.settingsSubProfile' },
-  { section: 'company', labelKey: 'nav.settingsSubCompany' },
-  { section: 'team', labelKey: 'nav.settingsSubTeam' },
-  { section: 'subscription', labelKey: 'nav.settingsSubSubscription' },
+const ALL_SETTINGS_NAV: { section: SettingsNavSection; labelKey: string; minRole: 'operator' | 'manager' | 'owner' }[] = [
+  { section: 'general',      labelKey: 'nav.settingsSubGeneral',      minRole: 'operator' },
+  { section: 'profile',      labelKey: 'nav.settingsSubProfile',      minRole: 'operator' },
+  { section: 'company',      labelKey: 'nav.settingsSubCompany',      minRole: 'owner'    },
+  { section: 'team',         labelKey: 'nav.settingsSubTeam',         minRole: 'manager'  },
+  { section: 'subscription', labelKey: 'nav.settingsSubSubscription', minRole: 'owner'    },
 ]
+
+function roleLevel(role: string): number {
+  if (role === 'owner') return 3
+  if (role === 'manager') return 2
+  return 1
+}
+
+function settingsNavForRole(role: string) {
+  const level = roleLevel(role)
+  return ALL_SETTINGS_NAV.filter((item) => roleLevel(item.minRole) <= level)
+}
 
 type SearchHit = {
   key: string
@@ -190,6 +202,13 @@ function SidebarNav({
   railExpanded?: boolean
 }) {
   const { t } = useTranslation()
+  const navUserRole = useAuthStore((s) => s.profile?.role ?? 'operator')
+  const navLevel = roleLevel(navUserRole)
+  const visibleNavIds = mainNavIds.filter((item) => {
+    if (item.id === 'integrations') return navLevel >= 2
+    return true
+  })
+  const visibleSettingsNav = settingsNavForRole(navUserRole)
   const settingsActive = tab === 'settings'
   const rail = !mobile
   const expanded = mobile ? true : railExpanded
@@ -239,7 +258,7 @@ function SidebarNav({
           mobile ? 'p-3 pt-1' : cn('pb-4 pt-2', expanded ? 'px-3' : 'px-1.5'),
         )}
       >
-      {mainNavIds.map(({ id, icon: Icon, labelKey }) => {
+      {visibleNavIds.map(({ id, icon: Icon, labelKey }) => {
         const active = tab === id
         const showLabel = expanded || !rail
         const iconNode =
@@ -386,7 +405,7 @@ function SidebarNav({
                 : 'ml-5 border-l pl-4',
             )}
           >
-            {settingsNavSubItems.map(({ section, labelKey }) => {
+            {visibleSettingsNav.map(({ section, labelKey }) => {
               const subActive = settingsActive && settingsSection === section
               return (
                 <button
@@ -496,6 +515,12 @@ function SidebarNav({
 
 export function Dashboard() {
   const { t } = useTranslation()
+  const signOut = useAuthStore((s) => s.signOut)
+  const authProfile = useAuthStore((s) => s.profile)
+  const userRole = authProfile?.role ?? 'operator'
+  const userInitials = authProfile?.full_name
+    ? authProfile.full_name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+    : '?'
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
   const [tab, setTab] = useState<DashboardTab>('dashboard')
   const [settingsNavOpen, setSettingsNavOpen] = useState(false)
@@ -1228,7 +1253,7 @@ export function Dashboard() {
                 <AvatarImage src={profileAvatarDataUrl} alt={t('topBar.profile')} />
               ) : (
                 <AvatarFallback className="bg-gradient-to-br from-gray-400 via-gray-600 to-gray-800 text-sm font-bold text-white dark:from-[#3e3e3e] dark:via-[#303030] dark:to-[#222222]">
-                  ED
+                  {userInitials}
                 </AvatarFallback>
               )}
             </AvatarCircle>
@@ -1258,32 +1283,37 @@ export function Dashboard() {
               >
                 {t('topBar.myProfile')}
               </button>
+              {userRole === 'owner' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileOpen(false)
+                      setSettingsSection('company')
+                      setTab('settings')
+                      setSettingsNavOpen(true)
+                    }}
+                    className="block w-full rounded-xl px-2.5 py-2 text-left text-sm hover:bg-gray-100/80 dark:text-[#f1f1f1] dark:hover:bg-white/[0.06]"
+                  >
+                    {t('topBar.companySettings')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileOpen(false)
+                      setSettingsSection('subscription')
+                      setTab('settings')
+                      setSettingsNavOpen(true)
+                    }}
+                    className="block w-full rounded-xl px-2.5 py-2 text-left text-sm hover:bg-gray-100/80 dark:text-[#f1f1f1] dark:hover:bg-white/[0.06]"
+                  >
+                    {t('topBar.subscriptionBilling')}
+                  </button>
+                </>
+              )}
               <button
                 type="button"
-                onClick={() => {
-                  setProfileOpen(false)
-                  setSettingsSection('company')
-                  setTab('settings')
-                  setSettingsNavOpen(true)
-                }}
-                className="block w-full rounded-xl px-2.5 py-2 text-left text-sm hover:bg-gray-100/80 dark:text-[#f1f1f1] dark:hover:bg-white/[0.06]"
-              >
-                {t('topBar.companySettings')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setProfileOpen(false)
-                  setSettingsSection('subscription')
-                  setTab('settings')
-                  setSettingsNavOpen(true)
-                }}
-                className="block w-full rounded-xl px-2.5 py-2 text-left text-sm hover:bg-gray-100/80 dark:text-[#f1f1f1] dark:hover:bg-white/[0.06]"
-              >
-                {t('topBar.subscriptionBilling')}
-              </button>
-              <button
-                type="button"
+                onClick={() => void signOut()}
                 className="block w-full rounded-xl px-2.5 py-2 text-left text-sm text-red-600 hover:bg-red-50/90 dark:text-red-400 dark:hover:bg-red-950/40"
               >
                 {t('topBar.logout')}

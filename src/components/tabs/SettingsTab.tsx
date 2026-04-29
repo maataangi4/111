@@ -7,6 +7,8 @@ import { useTranslation } from '../../i18n/useTranslation'
 import { LocationTopologySettings } from '../settings/LocationTopologySettings'
 import { TeamRolesSettings } from '../settings/TeamRolesSettings'
 import { SettingsGeneralPanel } from '../settings/SettingsGeneralPanel'
+import { ProfileSettingsPanel } from '../settings/ProfileSettingsPanel'
+import { useAuthStore } from '../../store/useAuthStore'
 
 type SettingsTabProps = {
   activeSection: SettingsNavSection
@@ -18,34 +20,17 @@ const BRAND_GREEN = '#06663F'
 
 export function SettingsTab({ activeSection, onSectionChange }: SettingsTabProps) {
   const { t } = useTranslation()
+  const userRole = useAuthStore((s) => s.profile?.role ?? 'operator')
+  const isOwner = userRole === 'owner'
+  const isManager = userRole === 'manager' || isOwner
 
   const tabs = [
-    {
-      id: 'general' as const,
-      label: t('settings.generalSectionTitle'),
-      icon: SlidersHorizontal,
-    },
-    {
-      id: 'profile' as const,
-      label: t('settings.profileSectionTitle'),
-      icon: User,
-    },
-    {
-      id: 'company' as const,
-      label: t('nav.settingsSubCompany'),
-      icon: Building2,
-    },
-    {
-      id: 'team' as const,
-      label: t('nav.settingsSubTeam'),
-      icon: Users,
-    },
-    {
-      id: 'subscription' as const,
-      label: t('settings.subscriptionSectionTitle'),
-      icon: CreditCard,
-    },
-  ] satisfies { id: SettingsNavSection; label: string; icon: typeof User }[]
+    { id: 'general' as const, label: t('settings.generalSectionTitle'), icon: SlidersHorizontal, show: true },
+    { id: 'profile' as const, label: t('settings.profileSectionTitle'), icon: User, show: true },
+    { id: 'company' as const, label: t('nav.settingsSubCompany'), icon: Building2, show: isOwner },
+    { id: 'team' as const, label: t('nav.settingsSubTeam'), icon: Users, show: isManager },
+    { id: 'subscription' as const, label: t('settings.subscriptionSectionTitle'), icon: CreditCard, show: isOwner },
+  ].filter((tab) => tab.show) satisfies { id: SettingsNavSection; label: string; icon: typeof User; show: boolean }[]
 
   return (
     <div className="min-h-0 w-full overflow-x-hidden px-6 pb-8 pt-6 md:px-8 md:pb-10 md:pt-8">
@@ -111,12 +96,7 @@ export function SettingsTab({ activeSection, onSectionChange }: SettingsTabProps
 
             {activeSection === 'profile' ? (
               <div key="panel-profile">
-                <section aria-labelledby="settings-heading-profile">
-                  <h3 id="settings-heading-profile" className={cn('text-lg font-semibold', C.heading)}>
-                    {t('settings.profileSectionTitle')}
-                  </h3>
-                  <p className={cn('mt-2 text-sm', C.muted)}>{t('settings.profileSectionHint')}</p>
-                </section>
+                <ProfileSettingsPanel />
               </div>
             ) : null}
 

@@ -1,4 +1,4 @@
-export type UserRole = 'owner' | 'manager' | 'operator'
+export type UserRole = 'owner' | 'manager' | 'operator' | 'legal' | 'medical'
 
 export interface Database {
   public: {

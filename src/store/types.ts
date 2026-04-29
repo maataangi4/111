@@ -67,7 +67,7 @@ export interface AttachedFile {
   dataUrl: string
 }
 
-export type EmployeeRole = 'manager' | 'operator'
+export type EmployeeRole = 'manager' | 'operator' | 'legal' | 'medical'
 
 export interface Employee {
   id: string

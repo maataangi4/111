@@ -31,6 +31,7 @@ import {
   type IntegrationId,
   useIntegrationsStore,
 } from '../../store/useIntegrationsStore'
+import { useAuthStore } from '../../store/useAuthStore'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -410,6 +411,7 @@ function ConfigPanel({ meta, onClose }: { meta: IntegrationMeta; onClose: () => 
   const setConnected = useIntegrationsStore((s) => s.setConnected)
   const setInfo = useIntegrationsStore((s) => s.setInfo)
   const disconnect = useIntegrationsStore((s) => s.disconnect)
+  const saveTenantTelegramConfig = useAuthStore((s) => s.saveTenantTelegramConfig)
 
   const [draft, setDraft] = useState<Record<string, string>>(() => ({ ...entry.config }))
   const [saving, setSaving] = useState(false)
@@ -434,6 +436,9 @@ function ConfigPanel({ meta, onClose }: { meta: IntegrationMeta; onClose: () => 
         patchConfig(meta.id, draft)
       }
       setConnected(meta.id, true)
+      if (meta.id === 'telegram') {
+        await saveTenantTelegramConfig(draft.botToken ?? '', draft.chatId ?? '')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
     } finally {
