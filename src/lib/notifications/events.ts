@@ -13,6 +13,8 @@ export const EVENT_ROLES: Record<NotificationEvent['type'], UserRole[]> = {
   // Ventas / socios → managers + owner + medical (consultas de pacientes)
   dispense:            ['manager', 'owner', 'medical'],
   dispense_revoke:     ['manager', 'owner', 'medical'],
+  // Alertas legales → managers + owner + legal
+  reprocann_expiry:    ['manager', 'owner', 'legal'],
 }
 
 export type NotificationEvent =
@@ -24,6 +26,7 @@ export type NotificationEvent =
   | { type: 'harvest'; batchId: string; strain: string; plantCount: number; location: string }
   | { type: 'dispense'; socioNombre: string; grams: number; batchLabel: string }
   | { type: 'dispense_revoke'; socioNombre: string; grams: number; batchLabel: string; reason: string }
+  | { type: 'reprocann_expiry'; socioNombre: string; dni: string; expiresOn: string; daysLeft: number }
 
 function ts(): string {
   return new Date().toLocaleString('es-AR', {
@@ -140,6 +143,23 @@ export function formatTelegramMessage(event: NotificationEvent): string {
         ``,
         `⏱️ ${t}`,
       ].join('\n')
+
+    case 'reprocann_expiry': {
+      const status = event.daysLeft <= 0 ? '🔴 *REPROCANN vencido*' : '⚠️ *REPROCANN por vencer*'
+      const days =
+        event.daysLeft <= 0
+          ? `Venció el ${event.expiresOn}`
+          : `Vence en ${event.daysLeft} día${event.daysLeft === 1 ? '' : 's'} (${event.expiresOn})`
+      return [
+        status,
+        ``,
+        `Socio: ${event.socioNombre}`,
+        `DNI: ${event.dni}`,
+        days,
+        ``,
+        `⏱️ ${t}`,
+      ].join('\n')
+    }
   }
 }
 
@@ -167,5 +187,11 @@ export function toUINotification(event: NotificationEvent): {
       return { title: 'Dispensación registrada', body: `${event.socioNombre} · ${event.grams}g · ${event.batchLabel}`, tone: 'emerald' }
     case 'dispense_revoke':
       return { title: 'Dispensación anulada', body: `${event.socioNombre} · ${event.batchLabel} · ${event.reason}`, tone: 'amber' }
+    case 'reprocann_expiry':
+      return {
+        title: event.daysLeft <= 0 ? 'REPROCANN vencido' : 'REPROCANN por vencer',
+        body: `${event.socioNombre} · DNI ${event.dni} · ${event.expiresOn}`,
+        tone: event.daysLeft <= 0 ? 'rose' : 'amber',
+      }
   }
 }

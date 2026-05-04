@@ -62,6 +62,7 @@ export type Socio = {
   id: string
   nombre: string
   dni: string
+  phone?: string
   reprocannCode: string
   reprocannExpiresOn: string | null // YYYY-MM-DD
   activo: boolean
@@ -71,6 +72,9 @@ export type Socio = {
   payments: { id: string; date: string; amountArs: number; note?: string }[]
   docs: SocioDocs
 }
+
+/** IDs ya alertados en esta sesión — evita re-disparar Telegram al navegar. */
+const _reprocannAlertedThisSession = new Set<string>()
 
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -106,6 +110,7 @@ function normalizeSocio(raw: unknown): Socio {
     id: String(x.id ?? uid()),
     nombre: String(x.nombre ?? ''),
     dni: String(x.dni ?? ''),
+    phone: typeof x.phone === 'string' && x.phone ? x.phone : undefined,
     reprocannCode: String(x.reprocannCode ?? '').padStart(6, '0').slice(0, 6),
     reprocannExpiresOn:
       typeof x.reprocannExpiresOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.reprocannExpiresOn)
@@ -147,6 +152,7 @@ function normalizeSocio(raw: unknown): Socio {
 export type AddSocioDraft = {
   nombre: string
   dni: string
+  phone?: string
   reprocannCode: string
   reprocannExpiresOn: string | null
   activo?: boolean
@@ -183,6 +189,9 @@ type SociosState = {
   }) => { ok: boolean; error?: string; reversalId?: string }
   getSocioLegalStatus: (s: Socio) => SocioLegalStatus
   getSocioInitials: (s: Socio) => string
+  /** Escanea socios activos, dispara Telegram + notificación in-app para REPROCANN próximos a vencer o vencidos.
+   *  Guard de sesión: cada socio se alerta una sola vez por sesión. Retorna cantidad alertada. */
+  checkReprocannExpiry: () => number
 }
 
 const seedSocios: Socio[] = [
@@ -270,6 +279,7 @@ export const useSociosStore = create<SociosState>()(
           id,
           nombre,
           dni,
+          phone: draft.phone?.trim() || undefined,
           reprocannCode: digits,
           reprocannExpiresOn: draft.reprocannExpiresOn,
           activo,
@@ -286,6 +296,36 @@ export const useSociosStore = create<SociosState>()(
       getSocioLegalStatus: (socio) => legalStatusFromExpires(socio.reprocannExpiresOn),
 
       getSocioInitials: (socio) => initialsFromName(socio.nombre),
+
+      checkReprocannExpiry: () => {
+        const socios = get().socios.filter((s) => s.activo)
+        let alerted = 0
+        const now = new Date()
+        for (const s of socios) {
+          if (_reprocannAlertedThisSession.has(s.id)) continue
+          const status = legalStatusFromExpires(s.reprocannExpiresOn)
+          if (status !== 'expira' && status !== 'vencido') continue
+          const exp = s.reprocannExpiresOn ? new Date(`${s.reprocannExpiresOn}T00:00:00`) : null
+          const daysLeft = exp
+            ? Math.floor((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            : -999
+          _reprocannAlertedThisSession.add(s.id)
+          get().pushNotification({
+            title: daysLeft <= 0 ? 'REPROCANN vencido' : 'REPROCANN por vencer',
+            body: `${s.nombre} · DNI ${s.dni} · ${s.reprocannExpiresOn ?? 'sin fecha'}`,
+            tone: daysLeft <= 0 ? 'rose' : 'amber',
+          })
+          dispatchTelegram({
+            type: 'reprocann_expiry',
+            socioNombre: s.nombre,
+            dni: s.dni,
+            expiresOn: s.reprocannExpiresOn ?? '—',
+            daysLeft,
+          })
+          alerted++
+        }
+        return alerted
+      },
 
       recordDispense: ({ socioId, grams, harvestBatchId, harvestBatchLabel, tipo, aporteArs, metodoPago }) => {
         const g = Number(grams)

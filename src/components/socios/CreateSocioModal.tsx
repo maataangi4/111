@@ -7,6 +7,7 @@ import {
   getConsentimientoAnexoIIIPublicUrl,
 } from '../../data/consentimientoAnexoIII'
 import { cn } from '../../lib/cn'
+import { PhoneInput } from './PhoneInput'
 import { useSociosStore, type SocioFinancialStatus } from '../../store/useSociosStore'
 
 function localIsoDate(d = new Date()): string {
@@ -34,6 +35,7 @@ function CreateSocioModalInner({ open, onOpenChange, onCreated }: CreateSocioMod
 
   const [nombre, setNombre] = useState('')
   const [dni, setDni] = useState('')
+  const [phone, setPhone] = useState('')
   const [reprocannCode, setReprocannCode] = useState('')
   const [reprocannExpiresOn, setReprocannExpiresOn] = useState('')
   const [activo, setActivo] = useState(true)
@@ -45,6 +47,7 @@ function CreateSocioModalInner({ open, onOpenChange, onCreated }: CreateSocioMod
   const resetForm = useCallback(() => {
     setNombre('')
     setDni('')
+    setPhone('')
     setReprocannCode('')
     setReprocannExpiresOn(defaultExpiryOneYear())
     setActivo(true)
@@ -98,6 +101,7 @@ function CreateSocioModalInner({ open, onOpenChange, onCreated }: CreateSocioMod
     const res = useSociosStore.getState().addSocio({
       nombre,
       dni,
+      phone: phone.trim() || undefined,
       reprocannCode: digits,
       reprocannExpiresOn: expires,
       activo,
@@ -273,6 +277,22 @@ function CreateSocioModalInner({ open, onOpenChange, onCreated }: CreateSocioMod
                             autoComplete="off"
                           />
                         </label>
+
+                        <div className="block">
+                          <span className="text-xs font-medium text-slate-600 dark:text-[#a3a3a3]">
+                            Teléfono / WhatsApp
+                          </span>
+                          <div className="mt-1">
+                            <PhoneInput
+                              value={phone}
+                              onChange={setPhone}
+                              inputClass="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 dark:border-[#3d3d3d] dark:bg-[#2a2a2a] dark:text-[#f1f1f1]"
+                            />
+                          </div>
+                          <p className="mt-1 text-[11px] text-slate-500 dark:text-[#6b6b6b]">
+                            Opcional. Se usa para enviar confirmaciones por WhatsApp.
+                          </p>
+                        </div>
 
                         <label className="block">
                           <span className="text-xs font-medium text-slate-600 dark:text-[#a3a3a3]">

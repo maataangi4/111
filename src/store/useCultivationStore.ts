@@ -1639,7 +1639,29 @@ export const useCultivationStore = create<CultivationState>()(
       cultivoBoard: buildInitialCultivoBoard(),
       cultivoTransplantHistory: [],
       cultivoFlowerMoveHistory: [],
-      harvestBatches: [],
+      harvestBatches: [
+        {
+          id: 'test-batch-001',
+          roomId: 'cultivo-floracion',
+          tableId: 'test-table-01',
+          roomLabel: 'Sala Floración',
+          tableLabel: 'Mueble 1',
+          strain: 'OG Kush',
+          plantIds: [],
+          plantCount: 5,
+          wetWeight: 250,
+          dryWeight: 180,
+          archived: false,
+          createdAt: new Date().toISOString(),
+          harvestDate: new Date().toISOString().slice(0, 10),
+          postHarvestStatus: 'STOCK' as const,
+          trimWasteWeight: 20,
+          stockGradePremiumG: 120,
+          stockGradePopcornG: 30,
+          stockGradeBiomassG: 10,
+          vaultLocationLabel: 'Bóveda A',
+        },
+      ],
       selectedPlants: [],
 
       setCultivoBoard: (update) =>
@@ -2633,7 +2655,7 @@ export const useCultivationStore = create<CultivationState>()(
         })),
     }),
     {
-      name: 'green-luck-cultivation',
+      name: 'green-luck-cultivation-v2',
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         rooms: s.rooms,
@@ -2676,7 +2698,7 @@ export const useCultivationStore = create<CultivationState>()(
             ? p.propagator.map(normalizeSeedling)
             : c.propagator,
           plants: quarantined.plants,
-          harvestBatches: Array.isArray(p.harvestBatches)
+          harvestBatches: Array.isArray(p.harvestBatches) && p.harvestBatches.length > 0
             ? p.harvestBatches.map(normalizeHarvest)
             : c.harvestBatches,
           cultivoBoard: normalizeCultivoBoard(

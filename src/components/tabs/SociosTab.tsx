@@ -117,6 +117,12 @@ export function SociosTab() {
   const socios = useSociosStore((s) => s.socios)
   const getSocioLegalStatus = useSociosStore((s) => s.getSocioLegalStatus)
   const getSocioInitials = useSociosStore((s) => s.getSocioInitials)
+  const checkReprocannExpiry = useSociosStore((s) => s.checkReprocannExpiry)
+
+  useEffect(() => {
+    checkReprocannExpiry()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [activeSocioId, setActiveSocioId] = useState<string | null>(null)
   const [addFabOpen, setAddFabOpen] = useState(false)
   const [addFabMotionOk, setAddFabMotionOk] = useState(true)

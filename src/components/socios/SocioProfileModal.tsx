@@ -3,13 +3,19 @@ import {
   AlertTriangle,
   BadgeCheck,
   CalendarClock,
+  CheckCircle2,
   CircleAlert,
   CreditCard,
   FileText,
+  MessageCircle,
   Package,
+  Phone,
+  Plus,
   X,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { buildWhatsAppUrl } from '../../lib/whatsapp'
+import { PhoneInput } from './PhoneInput'
 import {
   CONSENTIMIENTO_ANEXO_III_FILENAME,
   getConsentimientoAnexoIIIPublicUrl,
@@ -49,6 +55,19 @@ export function SocioProfileModal({
   const consentTemplateHref = useMemo(() => getConsentimientoAnexoIIIPublicUrl(), [])
   const [section, setSection] = useState<ProfileSection>('identidad')
   const [dispenseOpen, setDispenseOpen] = useState(false)
+
+  // Teléfono
+  const [editingPhone, setEditingPhone] = useState(false)
+  const [phoneInput, setPhoneInput] = useState('')
+
+  // Fecha vencimiento REPROCANN
+  const [editingExpiry, setEditingExpiry] = useState(false)
+  const [expiryInput, setExpiryInput] = useState('')
+
+  // Pagos
+  const [payAmount, setPayAmount] = useState('')
+  const [payNote, setPayNote] = useState('')
+  const [lastPay, setLastPay] = useState<{ amountArs: number; note: string } | null>(null)
   const view = useMemo(() => (socio ? deriveSocioView(socio) : null), [socio])
   const upsertSocio = useSociosStore((s) => s.upsertSocio)
   const clubTimeZone = useSettingsStore((s) => s.timezone)
@@ -104,6 +123,13 @@ export function SocioProfileModal({
     if (!open) return
     setSection('identidad')
     setDispenseOpen(false)
+    setEditingPhone(false)
+    setPhoneInput('')
+    setPayAmount('')
+    setPayNote('')
+    setLastPay(null)
+    setEditingExpiry(false)
+    setExpiryInput('')
   }, [open, socio?.id])
 
   const legalBlocked = view?.legalStatus === 'vencido'
@@ -244,7 +270,136 @@ export function SocioProfileModal({
 
                 <div className="mt-6">
                   {section === 'identidad' ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
+                      {/* Teléfono / WhatsApp */}
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-[#8c8c8c]">Contacto</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          {editingPhone ? (
+                            <>
+                              <PhoneInput
+                                value={phoneInput}
+                                onChange={setPhoneInput}
+                                autoFocus
+                                inputClass="border-slate-200 bg-white text-slate-900 dark:border-[#3d3d3d] dark:bg-[#2a2a2a] dark:text-[#f1f1f1]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  upsertSocio(socio.id, { phone: phoneInput.trim() || undefined })
+                                  setEditingPhone(false)
+                                }}
+                                className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingPhone(false)}
+                                className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-[#3d3d3d] dark:text-[#c4c4c4] dark:hover:bg-[#2a2a2a]"
+                              >
+                                Cancelar
+                              </button>
+                            </>
+                          ) : socio.phone ? (
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                              <span className="text-sm text-slate-700 dark:text-[#d4d4d4]">{socio.phone}</span>
+                              <button
+                                type="button"
+                                onClick={() => { setPhoneInput(socio.phone ?? ''); setEditingPhone(true) }}
+                                className="text-xs text-slate-400 underline underline-offset-2 hover:text-slate-600 dark:hover:text-[#c4c4c4]"
+                              >
+                                Editar
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => { setPhoneInput(''); setEditingPhone(true) }}
+                              className="flex items-center gap-1.5 text-xs text-slate-500 underline underline-offset-2 hover:text-slate-700 dark:text-[#8c8c8c] dark:hover:text-[#c4c4c4]"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Agregar teléfono / WhatsApp
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Vencimiento REPROCANN editable */}
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-[#8c8c8c]">Vencimiento REPROCANN</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {editingExpiry ? (
+                            <>
+                              <input
+                                type="date"
+                                value={expiryInput}
+                                onChange={(e) => setExpiryInput(e.target.value)}
+                                autoFocus
+                                className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-[#3d3d3d] dark:bg-[#2a2a2a] dark:text-[#f1f1f1]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const val = /^\d{4}-\d{2}-\d{2}$/.test(expiryInput) ? expiryInput : null
+                                  upsertSocio(socio.id, { reprocannExpiresOn: val })
+                                  setEditingExpiry(false)
+                                }}
+                                className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingExpiry(false)}
+                                className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-[#3d3d3d] dark:text-[#c4c4c4] dark:hover:bg-[#2a2a2a]"
+                              >
+                                Cancelar
+                              </button>
+                            </>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <CalendarClock className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                              <span className="text-sm text-slate-700 dark:text-[#d4d4d4]">
+                                {socio.reprocannExpiresOn ?? '—'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => { setExpiryInput(socio.reprocannExpiresOn ?? ''); setEditingExpiry(true) }}
+                                className="text-xs text-slate-400 underline underline-offset-2 hover:text-slate-600 dark:hover:text-[#c4c4c4]"
+                              >
+                                Editar
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {/* Aviso + botón WhatsApp cuando expira/vencido */}
+                        {(view.legalStatus === 'expira' || view.legalStatus === 'vencido') && socio.phone ? (
+                          <div className="mt-2">
+                            <a
+                              href={buildWhatsAppUrl(
+                                socio.phone,
+                                view.legalStatus === 'vencido'
+                                  ? `Hola ${socio.nombre}! Tu REPROCANN está vencido. Por favor actualizá tus documentos lo antes posible para seguir activo en el club.\n\nCanspace Club`
+                                  : `Hola ${socio.nombre}! Tu REPROCANN vence el ${socio.reprocannExpiresOn}. Acordate de renovarlo para seguir activo en el club.\n\nCanspace Club`,
+                              )}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                            >
+                              <MessageCircle className="h-4 w-4" aria-hidden />
+                              {view.legalStatus === 'vencido' ? 'Avisar por WhatsApp (vencido)' : 'Recordar renovación por WhatsApp'}
+                            </a>
+                          </div>
+                        ) : (view.legalStatus === 'expira' || view.legalStatus === 'vencido') ? (
+                          <p className="mt-1.5 text-xs text-slate-400 dark:text-[#6b6b6b]">
+                            Sin número de WhatsApp. Agregalo arriba para enviar aviso.
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="space-y-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-[#8c8c8c]">Documentos</p>
                       {[
                         { key: 'dniFront', label: 'DNI (frente)' },
@@ -297,6 +452,7 @@ export function SocioProfileModal({
                         )
                       })}
                     </div>
+                  </div>
                   ) : section === 'retiros' ? (
                     <div className="space-y-2">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-[#8c8c8c]">Retiros</p>
@@ -320,23 +476,113 @@ export function SocioProfileModal({
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-[#8c8c8c]">Pagos</p>
-                      {socio.payments.length === 0 ? (
-                        <p className="text-sm text-slate-500 dark:text-[#8c8c8c]">Sin pagos registrados.</p>
-                      ) : (
-                        socio.payments.map((p) => (
-                          <div key={p.id} className="rounded-2xl bg-white p-3 shadow-sm dark:bg-[#1a1a1a]">
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="text-sm font-semibold text-slate-900 dark:text-[#f1f1f1] tabular-nums">${p.amountArs}</p>
-                                <p className="mt-0.5 text-[12px] text-slate-500 dark:text-[#8c8c8c]">{formatLocalDate(p.date)}</p>
-                              </div>
-                              <p className="text-[12px] text-slate-500 dark:text-[#8c8c8c]">{p.note ?? '—'}</p>
+                    <div className="space-y-4">
+                      {/* Registrar nuevo pago */}
+                      <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 dark:border-[#2f2f2f] dark:bg-[#1a1a1a]">
+                        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-[#8c8c8c]">Registrar pago</p>
+
+                        {lastPay ? (
+                          <div className="flex flex-col items-center gap-4 py-2 text-center">
+                            <CheckCircle2 className="h-9 w-9 text-emerald-500" strokeWidth={1.5} />
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900 dark:text-[#f1f1f1]">Pago registrado — ${lastPay.amountArs}</p>
+                              {lastPay.note && <p className="mt-0.5 text-xs text-slate-500 dark:text-[#8c8c8c]">{lastPay.note}</p>}
                             </div>
+                            {socio.phone ? (
+                              <a
+                                href={buildWhatsAppUrl(
+                                  socio.phone,
+                                  `Hola ${socio.nombre}! Confirmamos la recepción de tu pago de $${lastPay.amountArs} en el club.${lastPay.note ? ` (${lastPay.note})` : ''}\n\nCanspace Club`,
+                                )}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                              >
+                                <MessageCircle className="h-4 w-4" aria-hidden />
+                                Enviar confirmación por WhatsApp
+                              </a>
+                            ) : (
+                              <p className="text-xs text-slate-400 dark:text-[#6b6b6b]">
+                                Sin número de WhatsApp. Agregalo en Identidad &amp; Legal.
+                              </p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setLastPay(null)}
+                              className="text-xs text-slate-400 underline underline-offset-2"
+                            >
+                              Registrar otro pago
+                            </button>
                           </div>
-                        ))
-                      )}
+                        ) : (
+                          <div className="flex flex-wrap items-end gap-2">
+                            <div>
+                              <p className="mb-1 text-xs text-slate-500 dark:text-[#8c8c8c]">Monto ($)</p>
+                              <input
+                                type="number"
+                                min={0}
+                                step={100}
+                                value={payAmount}
+                                onChange={(e) => setPayAmount(e.target.value)}
+                                placeholder="0"
+                                className="h-9 w-32 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-[#3d3d3d] dark:bg-[#2a2a2a] dark:text-[#f1f1f1]"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <p className="mb-1 text-xs text-slate-500 dark:text-[#8c8c8c]">Nota (opcional)</p>
+                              <input
+                                type="text"
+                                value={payNote}
+                                onChange={(e) => setPayNote(e.target.value)}
+                                placeholder="Ej. Cuota mayo"
+                                className="h-9 w-full min-w-[120px] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-[#3d3d3d] dark:bg-[#2a2a2a] dark:text-[#f1f1f1]"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              disabled={!payAmount || Number(payAmount) <= 0}
+                              onClick={() => {
+                                const amount = Math.max(0, Number(payAmount) || 0)
+                                if (!amount) return
+                                const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+                                upsertSocio(socio.id, {
+                                  payments: [
+                                    ...socio.payments,
+                                    { id: uid(), date: new Date().toISOString(), amountArs: amount, note: payNote.trim() || undefined },
+                                  ],
+                                })
+                                setLastPay({ amountArs: amount, note: payNote.trim() })
+                                setPayAmount('')
+                                setPayNote('')
+                              }}
+                              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Plus className="h-4 w-4" />
+                              Registrar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Historial de pagos */}
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-[#8c8c8c]">Historial</p>
+                        {socio.payments.length === 0 ? (
+                          <p className="text-sm text-slate-500 dark:text-[#8c8c8c]">Sin pagos registrados.</p>
+                        ) : (
+                          [...socio.payments].reverse().map((p) => (
+                            <div key={p.id} className="rounded-2xl bg-white p-3 shadow-sm dark:bg-[#1a1a1a]">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-900 dark:text-[#f1f1f1] tabular-nums">${p.amountArs}</p>
+                                  <p className="mt-0.5 text-[12px] text-slate-500 dark:text-[#8c8c8c]">{formatLocalDate(p.date)}</p>
+                                </div>
+                                <p className="text-[12px] text-slate-500 dark:text-[#8c8c8c]">{p.note ?? '—'}</p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

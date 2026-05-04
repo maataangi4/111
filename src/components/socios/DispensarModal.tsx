@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
-import { Package, X } from 'lucide-react'
+import { CheckCircle2, MessageCircle, Package, X } from 'lucide-react'
 import { cn } from '../../lib/cn'
+import { buildWhatsAppUrl } from '../../lib/whatsapp'
 import { useCultivationStore } from '../../store/useCultivationStore'
 import { useSociosStore, deriveSocioView, type MovimientoMetodoPago, type MovimientoTipo, type Socio } from '../../store/useSociosStore'
 
@@ -34,16 +35,20 @@ export function DispensarModal({
   const [aporteArs, setAporteArs] = useState<number>(0)
   const [metodoPago, setMetodoPago] = useState<MovimientoMetodoPago>('Efectivo')
   const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<{ grams: number; batchLabel: string; aporteArs: number; metodoPago: string } | null>(null)
 
+  // Resetea todo solo cuando el modal se abre (no cuando cambia `remaining`)
   useEffect(() => {
     if (!open) return
+    setDone(null)
     setError(null)
-    setGrams(Math.min(10, Math.max(0, remaining)))
-    setBatchId((prev) => prev || stockBatches[0]?.id || '')
     setTipo('legal')
     setAporteArs(0)
     setMetodoPago('Efectivo')
-  }, [open, remaining, stockBatches])
+    setBatchId(stockBatches[0]?.id ?? '')
+    setGrams(Math.min(10, Math.max(0, remaining)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -106,7 +111,7 @@ export function DispensarModal({
       setError('No se pudo registrar la dispensación.')
       return
     }
-    onOpenChange(false)
+    setDone({ grams, batchLabel: selectedLabel, aporteArs, metodoPago })
   }
 
   return (
@@ -159,6 +164,50 @@ export function DispensarModal({
               </button>
             </div>
 
+            {done ? (
+              <div className="flex flex-col items-center gap-5 px-6 py-10 text-center">
+                <CheckCircle2 className="h-12 w-12 text-emerald-400" strokeWidth={1.5} />
+                <div>
+                  <p className="text-lg font-semibold text-white">Dispensación registrada</p>
+                  <p className="mt-1 text-sm text-white/60">
+                    {fmtGrams(done.grams)} · {done.batchLabel}
+                  </p>
+                  {done.aporteArs > 0 && (
+                    <p className="mt-0.5 text-sm text-white/50">
+                      Aporte: ${done.aporteArs} · {done.metodoPago}
+                    </p>
+                  )}
+                </div>
+                <div className="flex w-full flex-col gap-2">
+                  {socio.phone ? (
+                    <a
+                      href={buildWhatsAppUrl(
+                        socio.phone,
+                        `Hola ${socio.nombre}! Tu dispensación fue registrada exitosamente.\n- Cantidad: ${fmtGrams(done.grams)}\n- Lote: ${done.batchLabel}${done.aporteArs > 0 ? `\n- Aporte: $${done.aporteArs} (${done.metodoPago})` : ''}\n\nCanspace Club`,
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_30px_rgba(37,211,102,0.25)] transition hover:brightness-110"
+                    >
+                      <MessageCircle className="h-4 w-4" aria-hidden />
+                      Enviar WhatsApp a {socio.nombre}
+                    </a>
+                  ) : (
+                    <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/50">
+                      Sin número de WhatsApp. Agregalo en el perfil del paciente para habilitar este botón.
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onOpenChange(false)}
+                    className="rounded-full px-4 py-2 text-sm font-semibold text-white/70 ring-1 ring-white/10 transition hover:bg-white/[0.06]"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <>
             <div className="space-y-4 p-5">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-white/[0.10] bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
@@ -274,6 +323,8 @@ export function DispensarModal({
                 Confirmar dispensación
               </button>
             </div>
+            </>
+            )}
           </motion.div>
         </motion.div>
       ) : null}
