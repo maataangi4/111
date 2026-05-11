@@ -61,7 +61,8 @@ export function DispensarModal({
 
   const legalBlocked = view.legalStatus === 'vencido'
   const financialBlocked = socio.financialStatus === 'deuda'
-  const blocked = legalBlocked || financialBlocked
+  const consentBlocked = socio.consentStatus !== 'aceptado'
+  const blocked = legalBlocked || financialBlocked || consentBlocked
 
   const selectedBatch = useMemo(() => stockBatches.find((b) => b.id === batchId) ?? null, [stockBatches, batchId])
   const maxByBatch = selectedBatch ? Math.max(0, selectedBatch.premiumG) : 0
@@ -71,6 +72,10 @@ export function DispensarModal({
 
   const submit = () => {
     setError(null)
+    if (consentBlocked) {
+      setError('El paciente todavía no firmó el consentimiento (Anexo III).')
+      return
+    }
     if (blocked) {
       setError('Acción bloqueada: Regularizar estado legal o financiero')
       return

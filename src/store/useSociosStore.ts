@@ -1,9 +1,18 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
+import {
+  acceptConsent,
+  createConsentRequest,
+  fetchConsentByToken,
+  generateConsentToken,
+  type ConsentStatus,
+} from '../lib/consent'
 import { dispatchTelegram } from '../lib/notifications/bus'
+import { supabase } from '../lib/supabase'
 
 export type SocioLegalStatus = 'vigente' | 'expira' | 'vencido'
 export type SocioFinancialStatus = 'al_dia' | 'deuda'
+export type SocioConsentStatus = ConsentStatus
 
 /** Límite de socios activos con cupo Reprocann (ONG). */
 export const SOCIOS_CLUB_ACTIVE_CAP = 150
@@ -71,6 +80,10 @@ export type Socio = {
   dispenseHistory: DispenseRecord[]
   payments: { id: string; date: string; amountArs: number; note?: string }[]
   docs: SocioDocs
+  consentStatus: SocioConsentStatus
+  consentToken?: string
+  consentAcceptedAt?: string
+  consentDocVersion?: string
 }
 
 /** IDs ya alertados en esta sesión — evita re-disparar Telegram al navegar. */
@@ -146,6 +159,13 @@ function normalizeSocio(raw: unknown): Socio {
                 : undefined,
           }
         : {},
+    consentStatus:
+      x.consentStatus === 'aceptado' || x.consentStatus === 'revocado' || x.consentStatus === 'pendiente'
+        ? x.consentStatus
+        : 'aceptado', // socios legacy se consideran aceptados (compat)
+    consentToken: typeof x.consentToken === 'string' ? x.consentToken : undefined,
+    consentAcceptedAt: typeof x.consentAcceptedAt === 'string' ? x.consentAcceptedAt : undefined,
+    consentDocVersion: typeof x.consentDocVersion === 'string' ? x.consentDocVersion : undefined,
   }
 }
 
@@ -159,10 +179,12 @@ export type AddSocioDraft = {
   financialStatus?: SocioFinancialStatus
   /** Si true, marca en expediente que ya hay copia firmada (mismo stub que otros docs). */
   consentimientoSignedOnFile?: boolean
+  /** Si true, no genera token clickwrap — usa la copia firmada física como evidencia. */
+  skipDigitalConsent?: boolean
 }
 
 export type AddSocioResult =
-  | { ok: true; id: string }
+  | { ok: true; id: string; consentToken?: string }
   | { ok: false; error: 'club_cap' | 'dup_dni' | 'invalid' }
 
 type SociosState = {
@@ -172,7 +194,15 @@ type SociosState = {
   pushNotification: (n: Omit<SociosNotification, 'id' | 'createdAt'> & { createdAt?: string }) => void
   clearNotifications: () => void
   upsertSocio: (id: string, patch: Partial<Socio>) => void
+  /** Borra socio del store local + intenta borrar consent_requests asociado en Supabase. */
+  deleteSocio: (id: string) => Promise<{ ok: boolean; error?: string }>
   addSocio: (draft: AddSocioDraft) => AddSocioResult
+  /** Sincroniza estado de consentimiento desde Supabase (post clickwrap). */
+  syncConsentStatus: (socioId: string) => Promise<SocioConsentStatus | null>
+  /** Acepta consent vía RPC (usado por la página pública). */
+  acceptConsentByToken: (token: string) => Promise<{ ok: boolean; error?: string; already?: boolean }>
+  /** Genera nuevo token + crea consent_request en Supabase. Invalida link previo. */
+  regenerateConsentRequest: (socioId: string) => Promise<{ ok: boolean; error?: string; token?: string }>
   recordDispense: (args: {
     socioId: string
     grams: number
@@ -257,15 +287,50 @@ export const useSociosStore = create<SociosState>()(
           socios: s.socios.map((x) => (x.id === id ? normalizeSocio({ ...x, ...patch, id }) : x)),
         })),
 
+      deleteSocio: async (id) => {
+        const socio = get().socios.find((s) => s.id === id)
+        if (!socio) return { ok: false, error: 'not_found' }
+        // Borrar consent_requests asociado (cascade borra consent_log).
+        try {
+          const { data: prof } = (await supabase
+            .from('profiles')
+            .select('tenant_id')
+            .eq('id', (await supabase.auth.getUser()).data.user?.id ?? '')
+            .maybeSingle()) as { data: { tenant_id: string } | null }
+          const tenantId = prof?.tenant_id
+          if (tenantId) {
+            await supabase
+              .from('consent_requests')
+              .delete()
+              .eq('tenant_id', tenantId)
+              .eq('socio_local_id', id)
+          }
+        } catch (e) {
+          console.error('[deleteSocio] error borrando consent:', e)
+          // continúa igual — borrado local debe completarse
+        }
+        set((s) => ({
+          socios: s.socios.filter((x) => x.id !== id),
+          movimientos: s.movimientos.filter((m) => m.socioId !== id),
+        }))
+        get().pushNotification({
+          title: 'Paciente eliminado',
+          body: `${socio.nombre} · DNI ${socio.dni}`,
+          tone: 'rose',
+        })
+        return { ok: true }
+      },
+
       addSocio: (draft) => {
         const nombre = String(draft.nombre ?? '').trim()
         const dni = String(draft.dni ?? '').trim()
         const digits = String(draft.reprocannCode ?? '').replace(/\D/g, '').slice(0, 6)
         if (!nombre || !dni || digits.length !== 6) return { ok: false, error: 'invalid' }
 
-        const activo = draft.activo !== false
         const activeCount = get().socios.filter((x) => x.activo).length
-        if (activo && activeCount >= SOCIOS_CLUB_ACTIVE_CAP) return { ok: false, error: 'club_cap' }
+        const hasSigned = Boolean(draft.consentimientoSignedOnFile || draft.skipDigitalConsent)
+        const initialActivo = draft.activo !== false ? hasSigned : false
+        if (initialActivo && activeCount >= SOCIOS_CLUB_ACTIVE_CAP) return { ok: false, error: 'club_cap' }
 
         const dniKey = dni.toLowerCase()
         if (get().socios.some((x) => x.dni.trim().toLowerCase() === dniKey)) {
@@ -275,6 +340,11 @@ export const useSociosStore = create<SociosState>()(
         const id = uid()
         const docs: SocioDocs = {}
         if (draft.consentimientoSignedOnFile) docs.consentimientoAnexoIII = 'uploaded'
+
+        const consentStatus: SocioConsentStatus = hasSigned ? 'aceptado' : 'pendiente'
+        const consentToken = !hasSigned ? generateConsentToken() : undefined
+        const consentAcceptedAt = hasSigned ? new Date().toISOString() : undefined
+
         const socio = normalizeSocio({
           id,
           nombre,
@@ -282,15 +352,167 @@ export const useSociosStore = create<SociosState>()(
           phone: draft.phone?.trim() || undefined,
           reprocannCode: digits,
           reprocannExpiresOn: draft.reprocannExpiresOn,
-          activo,
+          activo: initialActivo,
           financialStatus: draft.financialStatus === 'deuda' ? 'deuda' : 'al_dia',
           monthlyDispensedGrams: 0,
           dispenseHistory: [],
           payments: [],
           docs,
+          consentStatus,
+          consentToken,
+          consentAcceptedAt,
         })
         set((s) => ({ socios: [socio, ...s.socios] }))
-        return { ok: true, id }
+
+        if (consentToken) {
+          void (async () => {
+            try {
+              const { data: prof, error: profErr } = (await supabase
+                .from('profiles')
+                .select('tenant_id')
+                .eq('id', (await supabase.auth.getUser()).data.user?.id ?? '')
+                .maybeSingle()) as { data: { tenant_id: string } | null; error: { message: string } | null }
+              if (profErr) {
+                console.error('[consent] profile fetch failed:', profErr.message)
+                get().pushNotification({
+                  title: 'Consent: error de tenant',
+                  body: profErr.message,
+                  tone: 'rose',
+                })
+                return
+              }
+              const tenantId = prof?.tenant_id
+              if (!tenantId) {
+                console.error('[consent] sin tenant_id — usuario no logueado?')
+                get().pushNotification({
+                  title: 'Consent: sin tenant',
+                  body: 'No se encontró tenant del usuario. Recargá la página y reintentá.',
+                  tone: 'rose',
+                })
+                return
+              }
+              const res = await createConsentRequest({
+                tenantId,
+                socioLocalId: id,
+                nombre,
+                dni,
+                phone: draft.phone?.trim() || undefined,
+                reprocannCode: digits,
+                reprocannExpires: draft.reprocannExpiresOn ?? undefined,
+                token: consentToken,
+              })
+              if (!res.ok) {
+                console.error('[consent] createConsentRequest fallo:', res.error)
+                get().pushNotification({
+                  title: 'Consent: insert falló',
+                  body: res.error,
+                  tone: 'rose',
+                })
+              }
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : String(e)
+              console.error('[consent] excepción:', msg)
+              get().pushNotification({
+                title: 'Consent: excepción',
+                body: msg,
+                tone: 'rose',
+              })
+            }
+          })()
+        }
+
+        return { ok: true, id, consentToken }
+      },
+
+      syncConsentStatus: async (socioId) => {
+        const socio = get().socios.find((s) => s.id === socioId)
+        if (!socio?.consentToken) return socio?.consentStatus ?? null
+        const res = await fetchConsentByToken(socio.consentToken)
+        console.log('[consent sync]', socio.nombre, '→', res)
+        if (!res.ok) return null
+        const status = res.status
+        const acceptedAt = res.accepted_at ?? undefined
+        set((s) => ({
+          socios: s.socios.map((x) =>
+            x.id === socioId
+              ? {
+                  ...x,
+                  consentStatus: status,
+                  consentAcceptedAt: acceptedAt ?? x.consentAcceptedAt,
+                  consentDocVersion: res.doc_version,
+                  activo: status === 'aceptado' ? true : x.activo,
+                }
+              : x,
+          ),
+        }))
+        if (status === 'aceptado' && socio.consentStatus !== 'aceptado') {
+          get().pushNotification({
+            title: 'Consentimiento aceptado',
+            body: `${socio.nombre} firmó el Anexo III. Perfil activado.`,
+            tone: 'emerald',
+          })
+        }
+        return status
+      },
+
+      regenerateConsentRequest: async (socioId) => {
+        const socio = get().socios.find((s) => s.id === socioId)
+        if (!socio) return { ok: false, error: 'not_found' }
+        try {
+          const { data: prof, error: profErr } = (await supabase
+            .from('profiles')
+            .select('tenant_id')
+            .eq('id', (await supabase.auth.getUser()).data.user?.id ?? '')
+            .maybeSingle()) as { data: { tenant_id: string } | null; error: { message: string } | null }
+          if (profErr) return { ok: false, error: profErr.message }
+          const tenantId = prof?.tenant_id
+          if (!tenantId) return { ok: false, error: 'sin tenant_id (no logueado?)' }
+
+          const newToken = generateConsentToken()
+          const res = await createConsentRequest({
+            tenantId,
+            socioLocalId: socio.id,
+            nombre: socio.nombre,
+            dni: socio.dni,
+            phone: socio.phone,
+            reprocannCode: socio.reprocannCode,
+            reprocannExpires: socio.reprocannExpiresOn ?? undefined,
+            token: newToken,
+          })
+          if (!res.ok) return { ok: false, error: res.error }
+
+          set((s) => ({
+            socios: s.socios.map((x) =>
+              x.id === socioId
+                ? { ...x, consentToken: newToken, consentStatus: 'pendiente', consentAcceptedAt: undefined, activo: false }
+                : x,
+            ),
+          }))
+          return { ok: true, token: newToken }
+        } catch (e) {
+          return { ok: false, error: e instanceof Error ? e.message : String(e) }
+        }
+      },
+
+      acceptConsentByToken: async (token) => {
+        const res = await acceptConsent(token)
+        if (!res.ok) return { ok: false, error: res.error }
+        const socio = get().socios.find((s) => s.consentToken === token)
+        if (socio) {
+          set((s) => ({
+            socios: s.socios.map((x) =>
+              x.id === socio.id
+                ? {
+                    ...x,
+                    consentStatus: 'aceptado',
+                    consentAcceptedAt: new Date().toISOString(),
+                    activo: true,
+                  }
+                : x,
+            ),
+          }))
+        }
+        return { ok: true, already: res.already }
       },
 
       getSocioLegalStatus: (socio) => legalStatusFromExpires(socio.reprocannExpiresOn),
@@ -334,6 +556,7 @@ export const useSociosStore = create<SociosState>()(
         if (!hb) return { ok: false, error: 'batch' }
         const socio = get().socios.find((x) => x.id === socioId)
         if (!socio) return { ok: false, error: 'not_found' }
+        if (socio.consentStatus !== 'aceptado') return { ok: false, error: 'consent' }
         const legal = legalStatusFromExpires(socio.reprocannExpiresOn)
         if (legal === 'vencido') return { ok: false, error: 'legal' }
         if (socio.financialStatus === 'deuda') return { ok: false, error: 'financial' }

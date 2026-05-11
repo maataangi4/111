@@ -353,6 +353,11 @@ export function SociosTab() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-white">{s.nombre}</p>
                         <p className="truncate text-[12px] text-white/55">DNI {s.dni}</p>
+                        {s.consentStatus !== 'aceptado' ? (
+                          <p className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+                            {s.consentStatus === 'revocado' ? 'Consent. revocado' : 'Pendiente firma'}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
 

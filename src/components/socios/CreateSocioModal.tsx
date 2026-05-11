@@ -1,12 +1,14 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
-import { Download, X } from 'lucide-react'
+import { Check, Copy, Download, ExternalLink, MessageCircle, X } from 'lucide-react'
 import {
   CONSENTIMIENTO_ANEXO_III_FILENAME,
   getConsentimientoAnexoIIIPublicUrl,
 } from '../../data/consentimientoAnexoIII'
 import { cn } from '../../lib/cn'
+import { buildConsentUrl } from '../../lib/consent'
+import { buildWhatsAppUrl } from '../../lib/whatsapp'
 import { PhoneInput } from './PhoneInput'
 import { useSociosStore, type SocioFinancialStatus } from '../../store/useSociosStore'
 
@@ -43,6 +45,8 @@ function CreateSocioModalInner({ open, onOpenChange, onCreated }: CreateSocioMod
   const [consentTemplateDownloaded, setConsentTemplateDownloaded] = useState(false)
   const [consentDeliveredAck, setConsentDeliveredAck] = useState(false)
   const [consentSignedOnFile, setConsentSignedOnFile] = useState(false)
+  const [createdLink, setCreatedLink] = useState<{ url: string; nombre: string; phone?: string; socioId: string } | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const resetForm = useCallback(() => {
     setNombre('')
@@ -55,6 +59,8 @@ function CreateSocioModalInner({ open, onOpenChange, onCreated }: CreateSocioMod
     setConsentTemplateDownloaded(false)
     setConsentDeliveredAck(false)
     setConsentSignedOnFile(false)
+    setCreatedLink(null)
+    setCopied(false)
   }, [])
 
   useLayoutEffect(() => {
@@ -107,6 +113,7 @@ function CreateSocioModalInner({ open, onOpenChange, onCreated }: CreateSocioMod
       activo,
       financialStatus,
       consentimientoSignedOnFile: consentSignedOnFile,
+      skipDigitalConsent: consentSignedOnFile,
     })
 
     if (!res.ok) {
@@ -122,9 +129,36 @@ function CreateSocioModalInner({ open, onOpenChange, onCreated }: CreateSocioMod
       return
     }
 
+    if (res.consentToken) {
+      setCreatedLink({
+        url: buildConsentUrl(res.consentToken),
+        nombre,
+        phone: phone.trim() || undefined,
+        socioId: res.id,
+      })
+      onCreated?.(res.id)
+      return
+    }
+
     onOpenChange(false)
     onCreated?.(res.id)
   }
+
+  const copyLink = async () => {
+    if (!createdLink) return
+    try {
+      await navigator.clipboard.writeText(createdLink.url)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      window.prompt('Copiá manualmente el enlace:', createdLink.url)
+    }
+  }
+
+  const waMessage = createdLink
+    ? `Hola ${createdLink.nombre.split(' ')[0]}, te enviamos el consentimiento informado del club. Por favor leelo y al final tocá "Aceptar y activar perfil":\n\n${createdLink.url}`
+    : ''
+  const waUrl = createdLink?.phone ? buildWhatsAppUrl(createdLink.phone, waMessage) : ''
 
   const fieldClass =
     'mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/25 dark:border-[#3d3d3d] dark:bg-[#2a2a2a] dark:text-[#f1f1f1] dark:placeholder:text-[#6b6b6b]'
@@ -174,6 +208,78 @@ function CreateSocioModalInner({ open, onOpenChange, onCreated }: CreateSocioMod
                     </button>
 
                     <div className="max-h-[min(90dvh,calc(100vh-2rem))] overflow-y-auto overscroll-contain p-5 pt-12">
+                      {createdLink ? (
+                        <div>
+                          <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-[#f1f1f1]">
+                            Paciente creado · Pendiente de consentimiento
+                          </h2>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-[#8c8c8c]">
+                            El perfil quedó en estado <span className="font-semibold">pendiente</span>. Pasá el enlace al paciente; al aceptarlo, el perfil se activará automáticamente y podrás dispensar.
+                          </p>
+
+                          <div className="mt-4 rounded-2xl border border-amber-200/70 bg-amber-50/70 p-3.5 dark:border-amber-900/40 dark:bg-amber-950/30">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300">
+                              Enlace de firma electrónica
+                            </p>
+                            <p className="mt-2 break-all rounded-lg bg-white/80 px-2.5 py-2 font-mono text-[11px] text-slate-700 dark:bg-black/30 dark:text-[#d4d4d4]">
+                              {createdLink.url}
+                            </p>
+
+                            <div className="mt-3 flex flex-col gap-2">
+                              <button
+                                type="button"
+                                onClick={copyLink}
+                                className={cn(
+                                  'inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition',
+                                  copied
+                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200'
+                                    : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-[#454545] dark:bg-[#2a2a2a] dark:text-[#f1f1f1] dark:hover:bg-[#323232]',
+                                )}
+                              >
+                                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                                {copied ? 'Copiado' : 'Copiar enlace'}
+                              </button>
+
+                              {waUrl ? (
+                                <a
+                                  href={waUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 no-underline"
+                                >
+                                  <MessageCircle className="h-4 w-4" />
+                                  Abrir WhatsApp con mensaje
+                                </a>
+                              ) : (
+                                <p className="text-[11px] text-slate-500 dark:text-[#8c8c8c]">
+                                  Sin teléfono cargado: copiá el enlace y enviálo manualmente.
+                                </p>
+                              )}
+
+                              <a
+                                href={createdLink.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400/90"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                Vista previa en pestaña nueva
+                              </a>
+                            </div>
+                          </div>
+
+                          <div className="mt-6 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => onOpenChange(false)}
+                              className="rounded-xl bg-[#06663F] px-3 py-2 text-sm font-semibold text-white hover:brightness-110"
+                            >
+                              Listo
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                      <>
                       <h2
                         id="create-socio-title"
                         className="text-lg font-semibold tracking-tight text-slate-900 dark:text-[#f1f1f1]"
@@ -366,6 +472,8 @@ function CreateSocioModalInner({ open, onOpenChange, onCreated }: CreateSocioMod
                           Crear paciente
                         </button>
                       </div>
+                      </>
+                      )}
                     </div>
                   </motion.div>
                 </motion.div>

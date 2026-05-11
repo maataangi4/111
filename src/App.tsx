@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
+import { ConsentPage } from './components/ConsentPage'
 import { Dashboard } from './components/Dashboard'
 import { Login } from './components/Login'
 import { Register } from './components/Register'
@@ -12,19 +13,42 @@ function getJoinToken(): string | null {
   return match ? match[1] : null
 }
 
+function getConsentToken(): string | null {
+  const hash = window.location.hash
+  const match = hash.match(/^#consent=([a-f0-9]{32})$/)
+  return match ? match[1] : null
+}
+
 export default function App() {
   const init = useAuthStore((s) => s.init)
   const session = useAuthStore((s) => s.session)
   const loading = useAuthStore((s) => s.loading)
   const [joinToken, setJoinToken] = useState<string | null>(getJoinToken)
-
-  useEffect(() => { void init() }, [init])
+  const [consentToken, setConsentToken] = useState<string | null>(getConsentToken)
 
   useEffect(() => {
-    const onHash = () => setJoinToken(getJoinToken())
+    if (consentToken) return // página pública, no requiere auth
+    void init()
+  }, [init, consentToken])
+
+  useEffect(() => {
+    const onHash = () => {
+      setJoinToken(getJoinToken())
+      setConsentToken(getConsentToken())
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
+
+  // Página pública de consentimiento — render antes que loading/auth
+  if (consentToken) {
+    return (
+      <>
+        <ThemeSync />
+        <ConsentPage token={consentToken} />
+      </>
+    )
+  }
 
   if (loading) {
     return (
